@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CheckCircle, Package, AlertCircle } from 'lucide-react'
 
-export default function CheckoutSuccess() {
+function CheckoutSuccessContent() {
     const searchParams = useSearchParams()
     const sessionId = searchParams.get('session_id')
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -126,5 +126,13 @@ export default function CheckoutSuccess() {
 
             <Footer />
         </div>
+    )
+}
+
+export default function CheckoutSuccess() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50"><Navbar /><div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div></div>}>
+            <CheckoutSuccessContent />
+        </Suspense>
     )
 }
