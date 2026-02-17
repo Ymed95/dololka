@@ -209,7 +209,7 @@ export default function AdminMessages() {
 
                     {/* Message Thread */}
                     <Card className="lg:col-span-2">
-                        <CardContent className="p-0 flex flex-col" style={{ minHeight: '60vh' }}>
+                        <CardContent className="p-0 flex flex-col min-h-[60vh]">
                             {!selectedConversation ? (
                                 <div className="flex-1 flex items-center justify-center text-gray-500">
                                     <div className="text-center">
