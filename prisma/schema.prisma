@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  role          String    @default("client") // "client" or "admin"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  sentMessages  Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  category    String   // "tshirt", "hoodie", "cap", "mug", "other"
+  imageUrl    String
+  mockupUrl   String?  // URL for 3D/2D mockup
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orders      Order[]
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  userId          String
+  productId       String
+  status          String   @default("pending") // "pending", "in_production", "shipped", "completed"
+  totalPrice      Float
+  
+  // Customization data
+  designFileUrl   String?  // Path to uploaded logo/design
+  designFileName  String?
+  position        String?  // "front-left", "front-center", "back-center", etc.
+  designX         Float?   // X position on canvas
+  designY         Float?   // Y position on canvas
+  designWidth     Float?   // Width of design
+  designHeight    Float?   // Height of design
+  designRotation  Float?   // Rotation angle
+  customNotes     String?  // Additional notes from client
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
+  messages        Message[]
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  orderId     String?  // Optional: link to specific order
+  subject     String?
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  order       Order?   @relation(fields: [orderId], references: [id])
+}
