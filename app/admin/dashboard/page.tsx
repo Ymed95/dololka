@@ -108,7 +108,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
                     <Card className="bg-gradient-to-br from-primary-500 to-primary-600 text-white">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">

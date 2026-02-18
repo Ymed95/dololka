@@ -157,13 +157,13 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left: Product Info */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+                        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 lg:sticky lg:top-24">
                             <Link href={`/product/${params.id}`} className="flex items-center text-primary-600 hover:text-primary-700 mb-4">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Retour au produit
                             </Link>
 
-                            <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold mb-4">{product.name}</h1>
                             <p className="text-gray-600 mb-6">{product.description}</p>
 
                             <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-lg p-4 mb-6">

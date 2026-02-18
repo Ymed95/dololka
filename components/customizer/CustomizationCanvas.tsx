@@ -229,8 +229,25 @@ export const CustomizationCanvas = ({
     const currentTemplateUrl = views.find(view => view.id === currentViewId)?.templateUrl || productImageUrl
     const [productImage] = useImage(currentTemplateUrl)
 
-    const canvasWidth = 520
-    const canvasHeight = 640
+    const canvasContainerRef = useRef<HTMLDivElement>(null)
+    const [canvasWidth, setCanvasWidth] = useState(520)
+    const [canvasHeight, setCanvasHeight] = useState(640)
+
+    useEffect(() => {
+        const updateSize = () => {
+            if (canvasContainerRef.current) {
+                const containerWidth = canvasContainerRef.current.offsetWidth
+                const w = Math.min(containerWidth, 520)
+                const h = Math.round(w * (640 / 520))
+                setCanvasWidth(w)
+                setCanvasHeight(h)
+            }
+        }
+        updateSize()
+        window.addEventListener('resize', updateSize)
+        return () => window.removeEventListener('resize', updateSize)
+    }, [])
+
     const productLayout = useMemo<ProductLayout>(() => {
         if (!productImage) {
             return { offsetX: 0, offsetY: 0, scale: 1, displayWidth: 0, displayHeight: 0 }
@@ -305,8 +322,8 @@ export const CustomizationCanvas = ({
                 </div>
 
                 {/* Konva Canvas with Drag & Drop */}
-                <div className="relative flex flex-col justify-center items-center">
-                    <div className="rounded-lg bg-gray-50 border border-gray-200">
+                <div ref={canvasContainerRef} className="relative flex flex-col justify-center items-center w-full">
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 max-w-full overflow-hidden">
                         <Stage
                             width={canvasWidth}
                             height={canvasHeight}
@@ -354,13 +371,13 @@ export const CustomizationCanvas = ({
                     </div>
 
                     {/* Toggle Views */}
-                    <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
                         {views.map((view) => (
                             <button
                                 key={view.id}
                                 onClick={() => setCurrentViewId(view.id)}
-                                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${currentViewId === view.id
-                                    ? 'bg-primary-600 text-white shadow-lg transform scale-105'
+                                className={`px-4 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${currentViewId === view.id
+                                    ? 'bg-primary-600 text-white shadow-lg'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
