@@ -30,12 +30,28 @@ model Product {
   description String
   price       Float
   category    String   // "tshirt", "hoodie", "cap", "mug", "other"
+  type        String   @default("customizable") // "customizable", "textile", "materiel"
   imageUrl    String
   mockupUrl   String?  // URL for 3D/2D mockup
+  sizes       String?  // Available sizes e.g. "XS,S,M,L,XL,2XL"
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   orders      Order[]
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   // "branding", "web", "social", "textile", "design", "pub"
+  tags        String   // Comma-separated tags
+  color       String   @default("from-primary-500 to-secondary-500") // Gradient CSS classes
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Order {

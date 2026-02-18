@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
-import { Package, Users, DollarSign, MessageSquare, TrendingUp } from 'lucide-react'
+import { Package, Users, DollarSign, MessageSquare, TrendingUp, Briefcase, Image as ImageIcon } from 'lucide-react'
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession()
@@ -216,33 +216,53 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Link href="/admin/products">
                         <Card hover className="cursor-pointer">
-                            <CardContent className="p-6 text-center">
-                                <Package className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold mb-2">Gérer les produits</h3>
-                                <p className="text-gray-600">Ajouter, modifier ou supprimer des produits</p>
+                            <CardContent className="p-5 text-center">
+                                <Package className="w-10 h-10 text-primary-600 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold mb-1">Produits</h3>
+                                <p className="text-gray-600 text-sm">Personnalisation, textile vierge, matériel</p>
                             </CardContent>
                         </Card>
                     </Link>
 
                     <Link href="/admin/orders">
                         <Card hover className="cursor-pointer">
-                            <CardContent className="p-6 text-center">
-                                <Package className="w-12 h-12 text-secondary-600 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold mb-2">Gérer les commandes</h3>
-                                <p className="text-gray-600">Mettre à jour les statuts de commandes</p>
+                            <CardContent className="p-5 text-center">
+                                <Briefcase className="w-10 h-10 text-secondary-600 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold mb-1">Commandes</h3>
+                                <p className="text-gray-600 text-sm">Gérer les statuts de commandes</p>
                             </CardContent>
                         </Card>
                     </Link>
 
                     <Link href="/admin/messages">
-                        <Card hover className="cursor-pointer bg-gradient-to-br from-purple-50 to-purple-100">
-                            <CardContent className="p-6 text-center">
-                                <MessageSquare className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold mb-2">Messages clients</h3>
-                                <p className="text-gray-600">Lire et répondre aux messages</p>
+                        <Card hover className="cursor-pointer">
+                            <CardContent className="p-5 text-center">
+                                <MessageSquare className="w-10 h-10 text-purple-600 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold mb-1">Messages</h3>
+                                <p className="text-gray-600 text-sm">Lire et répondre aux clients</p>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
+                    <Link href="/admin/portfolio">
+                        <Card hover className="cursor-pointer">
+                            <CardContent className="p-5 text-center">
+                                <ImageIcon className="w-10 h-10 text-teal-600 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold mb-1">Portfolio</h3>
+                                <p className="text-gray-600 text-sm">Gérer les projets et réalisations</p>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
+                    <Link href="/admin/users">
+                        <Card hover className="cursor-pointer">
+                            <CardContent className="p-5 text-center">
+                                <Users className="w-10 h-10 text-blue-600 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold mb-1">Utilisateurs</h3>
+                                <p className="text-gray-600 text-sm">Voir les clients inscrits</p>
                             </CardContent>
                         </Card>
                     </Link>

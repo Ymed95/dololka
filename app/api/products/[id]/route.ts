@@ -5,7 +5,6 @@ import { authOptions } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
-// GET /api/products/[id] - Get single product
 export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
@@ -16,23 +15,16 @@ export async function GET(
         })
 
         if (!product) {
-            return NextResponse.json(
-                { error: 'Product not found' },
-                { status: 404 }
-            )
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 })
         }
 
         return NextResponse.json(product)
     } catch (error) {
         console.error('Error fetching product:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch product' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 })
     }
 }
 
-// PUT /api/products/[id] - Update product (admin only)
 export async function PUT(
     request: NextRequest,
     { params }: { params: { id: string } }
@@ -41,14 +33,11 @@ export async function PUT(
         const session = await getServerSession(authOptions)
 
         if (!session || (session.user as any)?.role !== 'admin') {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const body = await request.json()
-        const { name, description, price, category, imageUrl, mockupUrl } = body
+        const { name, description, price, category, type, imageUrl, mockupUrl, sizes } = body
 
         const product = await prisma.product.update({
             where: { id: params.id },
@@ -57,22 +46,20 @@ export async function PUT(
                 description,
                 price: parseFloat(price),
                 category,
+                type: type || 'customizable',
                 imageUrl,
                 mockupUrl,
+                sizes: sizes || null,
             },
         })
 
         return NextResponse.json(product)
     } catch (error) {
         console.error('Error updating product:', error)
-        return NextResponse.json(
-            { error: 'Failed to update product' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'Failed to update product' }, { status: 500 })
     }
 }
 
-// DELETE /api/products/[id] - Delete product (admin only)
 export async function DELETE(
     request: NextRequest,
     { params }: { params: { id: string } }
@@ -81,10 +68,7 @@ export async function DELETE(
         const session = await getServerSession(authOptions)
 
         if (!session || (session.user as any)?.role !== 'admin') {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         await prisma.product.delete({
@@ -94,9 +78,6 @@ export async function DELETE(
         return NextResponse.json({ message: 'Product deleted successfully' })
     } catch (error) {
         console.error('Error deleting product:', error)
-        return NextResponse.json(
-            { error: 'Failed to delete product' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
     }
 }

@@ -142,6 +142,12 @@ export const Navbar = () => {
                                                     <Link href="/admin/messages" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
                                                         Messages
                                                     </Link>
+                                                    <Link href="/admin/portfolio" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
+                                                        Portfolio
+                                                    </Link>
+                                                    <Link href="/admin/users" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
+                                                        Utilisateurs
+                                                    </Link>
                                                 </>
                                             ) : (
                                                 <>

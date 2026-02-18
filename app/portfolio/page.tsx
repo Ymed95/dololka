@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import Link from 'next/link'
-import { ArrowRight, ExternalLink } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 const categories = [
     { value: 'all', label: 'Tout' },
@@ -14,85 +14,36 @@ const categories = [
     { value: 'textile', label: 'Textile' },
     { value: 'design', label: 'Design' },
     { value: 'pub', label: 'Publicité' },
+    { value: 'photo', label: 'Photo & Vidéo' },
 ]
 
-const projects = [
-    {
-        id: 1,
-        title: 'KB Fashion - Identité Complète',
-        category: 'branding',
-        description: 'Création de l\'identité visuelle complète : logo, charte graphique, packaging et site e-commerce.',
-        tags: ['Logo', 'Charte graphique', 'E-commerce'],
-        color: 'from-violet-500 to-purple-600',
-    },
-    {
-        id: 2,
-        title: 'Beauty Studio - Réseaux Sociaux',
-        category: 'social',
-        description: 'Stratégie social media, création de contenu et gestion quotidienne des comptes Instagram et TikTok.',
-        tags: ['Instagram', 'TikTok', 'Contenu'],
-        color: 'from-pink-500 to-rose-600',
-    },
-    {
-        id: 3,
-        title: 'TechStart - Site Vitrine',
-        category: 'web',
-        description: 'Conception et développement d\'un site vitrine moderne avec animations et optimisé SEO.',
-        tags: ['Next.js', 'Design', 'SEO'],
-        color: 'from-blue-500 to-cyan-600',
-    },
-    {
-        id: 4,
-        title: 'StreetWear Co - Collection Textile',
-        category: 'textile',
-        description: 'Création d\'une collection complète de 25 pièces : design, production et branding.',
-        tags: ['T-shirts', 'Hoodies', 'Branding'],
-        color: 'from-orange-500 to-amber-600',
-    },
-    {
-        id: 5,
-        title: 'FoodieSpot - Campagne Pub',
-        category: 'pub',
-        description: 'Campagne Meta Ads et Google Ads avec un ROI de 4.5x sur 3 mois.',
-        tags: ['Meta Ads', 'Google Ads', 'ROI 4.5x'],
-        color: 'from-green-500 to-emerald-600',
-    },
-    {
-        id: 6,
-        title: 'Luxe Habitat - Supports Print',
-        category: 'design',
-        description: 'Brochures, flyers, cartes de visite et roll-ups pour un promoteur immobilier haut de gamme.',
-        tags: ['Print', 'Brochure', 'Roll-up'],
-        color: 'from-gray-600 to-gray-800',
-    },
-    {
-        id: 7,
-        title: 'GreenLeaf - E-commerce Bio',
-        category: 'web',
-        description: 'Boutique en ligne avec système d\'abonnement et gestion de stock automatisée.',
-        tags: ['Shopify', 'Abonnement', 'Bio'],
-        color: 'from-teal-500 to-green-600',
-    },
-    {
-        id: 8,
-        title: 'SportMax - Maillots Personnalisés',
-        category: 'textile',
-        description: 'Production de 500 maillots personnalisés pour une ligue sportive régionale.',
-        tags: ['Maillots', 'Sérigraphie', 'Sport'],
-        color: 'from-red-500 to-orange-600',
-    },
-    {
-        id: 9,
-        title: 'CoiffStyle - Enseigne & Vitrine',
-        category: 'design',
-        description: 'Conception et fabrication d\'une enseigne lumineuse et habillage vitrine complet.',
-        tags: ['Enseigne', 'Vitrine', 'Signalétique'],
-        color: 'from-indigo-500 to-blue-600',
-    },
-]
+interface PortfolioProject {
+    id: string
+    title: string
+    description: string
+    category: string
+    tags: string
+    color: string
+    imageUrl?: string
+    isActive: boolean
+}
 
 export default function PortfolioPage() {
     const [selectedCategory, setSelectedCategory] = useState('all')
+    const [projects, setProjects] = useState<PortfolioProject[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetch('/api/portfolio')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setProjects(data.filter((p: PortfolioProject) => p.isActive !== false))
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false))
+    }, [])
 
     const filtered = selectedCategory === 'all'
         ? projects
@@ -141,30 +92,39 @@ export default function PortfolioPage() {
             {/* Projects Grid */}
             <section className="py-12 md:py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filtered.map((project) => (
-                            <div key={project.id} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300">
-                                <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center`}>
-                                    <span className="text-white/80 text-6xl font-black">{String(project.id).padStart(2, '0')}</span>
-                                </div>
-                                <div className="p-6">
-                                    <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{project.title}</h3>
-                                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">{project.description}</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {project.tags.map((tag) => (
-                                            <span key={tag} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                                                {tag}
-                                            </span>
-                                        ))}
+                    {loading ? (
+                        <div className="text-center py-12">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto"></div>
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="text-center py-16">
+                            <p className="text-gray-500 text-lg">
+                                {projects.length === 0
+                                    ? 'Les projets arrivent bientôt. Restez connectés !'
+                                    : 'Aucun projet dans cette catégorie pour le moment'
+                                }
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filtered.map((project, index) => (
+                                <div key={project.id} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300">
+                                    <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center`}>
+                                        <span className="text-white/80 text-6xl font-black">{String(index + 1).padStart(2, '0')}</span>
+                                    </div>
+                                    <div className="p-6">
+                                        <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{project.title}</h3>
+                                        <p className="text-gray-600 text-sm mb-4 leading-relaxed">{project.description}</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {project.tags.split(',').map((tag) => (
+                                                <span key={tag} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                                                    {tag.trim()}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {filtered.length === 0 && (
-                        <div className="text-center py-16">
-                            <p className="text-gray-500 text-lg">Aucun projet dans cette catégorie pour le moment</p>
+                            ))}
                         </div>
                     )}
                 </div>
