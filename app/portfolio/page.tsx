@@ -1,0 +1,189 @@
+'use client'
+
+import { useState } from 'react'
+import { Navbar } from '@/components/Navbar'
+import { Footer } from '@/components/Footer'
+import Link from 'next/link'
+import { ArrowRight, ExternalLink } from 'lucide-react'
+
+const categories = [
+    { value: 'all', label: 'Tout' },
+    { value: 'branding', label: 'Branding' },
+    { value: 'web', label: 'Sites Web' },
+    { value: 'social', label: 'Réseaux Sociaux' },
+    { value: 'textile', label: 'Textile' },
+    { value: 'design', label: 'Design' },
+    { value: 'pub', label: 'Publicité' },
+]
+
+const projects = [
+    {
+        id: 1,
+        title: 'KB Fashion - Identité Complète',
+        category: 'branding',
+        description: 'Création de l\'identité visuelle complète : logo, charte graphique, packaging et site e-commerce.',
+        tags: ['Logo', 'Charte graphique', 'E-commerce'],
+        color: 'from-violet-500 to-purple-600',
+    },
+    {
+        id: 2,
+        title: 'Beauty Studio - Réseaux Sociaux',
+        category: 'social',
+        description: 'Stratégie social media, création de contenu et gestion quotidienne des comptes Instagram et TikTok.',
+        tags: ['Instagram', 'TikTok', 'Contenu'],
+        color: 'from-pink-500 to-rose-600',
+    },
+    {
+        id: 3,
+        title: 'TechStart - Site Vitrine',
+        category: 'web',
+        description: 'Conception et développement d\'un site vitrine moderne avec animations et optimisé SEO.',
+        tags: ['Next.js', 'Design', 'SEO'],
+        color: 'from-blue-500 to-cyan-600',
+    },
+    {
+        id: 4,
+        title: 'StreetWear Co - Collection Textile',
+        category: 'textile',
+        description: 'Création d\'une collection complète de 25 pièces : design, production et branding.',
+        tags: ['T-shirts', 'Hoodies', 'Branding'],
+        color: 'from-orange-500 to-amber-600',
+    },
+    {
+        id: 5,
+        title: 'FoodieSpot - Campagne Pub',
+        category: 'pub',
+        description: 'Campagne Meta Ads et Google Ads avec un ROI de 4.5x sur 3 mois.',
+        tags: ['Meta Ads', 'Google Ads', 'ROI 4.5x'],
+        color: 'from-green-500 to-emerald-600',
+    },
+    {
+        id: 6,
+        title: 'Luxe Habitat - Supports Print',
+        category: 'design',
+        description: 'Brochures, flyers, cartes de visite et roll-ups pour un promoteur immobilier haut de gamme.',
+        tags: ['Print', 'Brochure', 'Roll-up'],
+        color: 'from-gray-600 to-gray-800',
+    },
+    {
+        id: 7,
+        title: 'GreenLeaf - E-commerce Bio',
+        category: 'web',
+        description: 'Boutique en ligne avec système d\'abonnement et gestion de stock automatisée.',
+        tags: ['Shopify', 'Abonnement', 'Bio'],
+        color: 'from-teal-500 to-green-600',
+    },
+    {
+        id: 8,
+        title: 'SportMax - Maillots Personnalisés',
+        category: 'textile',
+        description: 'Production de 500 maillots personnalisés pour une ligue sportive régionale.',
+        tags: ['Maillots', 'Sérigraphie', 'Sport'],
+        color: 'from-red-500 to-orange-600',
+    },
+    {
+        id: 9,
+        title: 'CoiffStyle - Enseigne & Vitrine',
+        category: 'design',
+        description: 'Conception et fabrication d\'une enseigne lumineuse et habillage vitrine complet.',
+        tags: ['Enseigne', 'Vitrine', 'Signalétique'],
+        color: 'from-indigo-500 to-blue-600',
+    },
+]
+
+export default function PortfolioPage() {
+    const [selectedCategory, setSelectedCategory] = useState('all')
+
+    const filtered = selectedCategory === 'all'
+        ? projects
+        : projects.filter(p => p.category === selectedCategory)
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+
+            {/* Hero */}
+            <section className="bg-gradient-to-br from-gray-900 via-gray-800 to-primary-900 text-white py-16 md:py-24">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
+                        Nos{' '}
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-secondary-400">
+                            Réalisations
+                        </span>
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
+                        Découvrez une sélection de projets réalisés pour nos clients
+                    </p>
+                </div>
+            </section>
+
+            {/* Filters */}
+            <section className="py-8 bg-white border-b border-gray-100 sticky top-16 z-30">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {categories.map((cat) => (
+                            <button
+                                key={cat.value}
+                                onClick={() => setSelectedCategory(cat.value)}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                                    selectedCategory === cat.value
+                                        ? 'bg-primary-600 text-white shadow-lg'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Projects Grid */}
+            <section className="py-12 md:py-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filtered.map((project) => (
+                            <div key={project.id} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300">
+                                <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center`}>
+                                    <span className="text-white/80 text-6xl font-black">{String(project.id).padStart(2, '0')}</span>
+                                </div>
+                                <div className="p-6">
+                                    <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{project.title}</h3>
+                                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">{project.description}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {project.tags.map((tag) => (
+                                            <span key={tag} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {filtered.length === 0 && (
+                        <div className="text-center py-16">
+                            <p className="text-gray-500 text-lg">Aucun projet dans cette catégorie pour le moment</p>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* CTA */}
+            <section className="py-16 md:py-20 bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <h2 className="text-3xl md:text-4xl font-bold mb-6">Votre projet pourrait être le prochain</h2>
+                    <p className="text-lg mb-8 text-primary-100">
+                        Contactez-nous pour discuter de votre projet et obtenir un devis gratuit
+                    </p>
+                    <Link href="/contact" className="inline-flex items-center px-8 py-3 bg-white text-primary-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                        Lancer mon projet <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                </div>
+            </section>
+
+            <Footer />
+        </div>
+    )
+}
