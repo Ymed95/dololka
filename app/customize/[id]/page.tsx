@@ -44,6 +44,7 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
     const [loading, setLoading] = useState(true)
     const [selectedSize, setSelectedSize] = useState<string>('M')
     const [selectedColor, setSelectedColor] = useState(productColors[0])
+    const [quantity, setQuantity] = useState(1)
 
     // Fetch product from database
     useEffect(() => {
@@ -72,14 +73,15 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
         console.log('Customization saved:', config)
 
         // Save to cart
+        const qty = Math.max(1, Math.min(99, quantity))
         const cartItem = {
             productId: params.id,
             product: product,
             customization: config,
             size: selectedSize,
             color: selectedColor.name,
-            quantity: 1,
-            totalPrice: product.price,
+            quantity: qty,
+            totalPrice: product.price * qty,
         }
 
         // Store in localStorage for demo
@@ -190,6 +192,40 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Quantity Selector */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                    Quantité
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                                        className="w-10 h-10 rounded-lg border-2 border-gray-200 font-bold text-gray-600 hover:border-primary-500 hover:text-primary-600 transition-colors"
+                                    >
+                                        −
+                                    </button>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={99}
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(Math.max(1, Math.min(99, parseInt(e.target.value) || 1)))}
+                                        className="w-16 text-center py-2 border-2 border-gray-200 rounded-lg font-bold text-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuantity(q => Math.min(99, q + 1))}
+                                        className="w-10 h-10 rounded-lg border-2 border-gray-200 font-bold text-gray-600 hover:border-primary-500 hover:text-primary-600 transition-colors"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Prix unitaire : {product.price.toFixed(2)}€ — Total : {(product.price * quantity).toFixed(2)}€
+                                </p>
                             </div>
 
                             {/* Color Selector */}

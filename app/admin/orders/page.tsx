@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Package, Download, X, Eye, User, MapPin, FileImage } from 'lucide-react'
+import { OrderDesignPreview } from '@/components/admin/OrderDesignPreview'
 
 const statusLabels: Record<string, string> = {
     pending_payment: 'En attente de paiement',
@@ -332,12 +333,29 @@ export default function AdminOrders() {
                                 </h3>
                                 {selectedOrder.designFileUrl ? (
                                     <div>
-                                        {/* Design Preview */}
-                                        <div className="bg-white rounded-lg p-4 mb-4 flex items-center justify-center" style={{ minHeight: 200 }}>
+                                        {/* Prévisualisation complète : produit + design positionné */}
+                                        {selectedOrder.designX != null && selectedOrder.product?.imageUrl && (
+                                            <div className="mb-4">
+                                                <p className="text-xs font-medium text-gray-600 mb-2">Vue d&apos;ensemble (produit + design)</p>
+                                                <OrderDesignPreview
+                                                    productImageUrl={selectedOrder.product.imageUrl}
+                                                    designFileUrl={selectedOrder.designFileUrl}
+                                                    designX={selectedOrder.designX}
+                                                    designY={selectedOrder.designY}
+                                                    designWidth={selectedOrder.designWidth ?? 100}
+                                                    designHeight={selectedOrder.designHeight ?? 100}
+                                                    designRotation={selectedOrder.designRotation ?? 0}
+                                                    className="w-full max-w-sm"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Design seul */}
+                                        <div className="bg-white rounded-lg p-4 mb-4 flex items-center justify-center" style={{ minHeight: 120 }}>
                                             <img
                                                 src={selectedOrder.designFileUrl}
                                                 alt="Design client"
-                                                className="max-w-full max-h-64 object-contain"
+                                                className="max-w-full max-h-40 object-contain"
                                             />
                                         </div>
 

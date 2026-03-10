@@ -27,6 +27,10 @@ function CheckoutSuccessContent() {
             const res = await fetch(`/api/checkout/verify?session_id=${sessionId}`)
             if (res.ok) {
                 setStatus('success')
+                // Vider le panier uniquement après paiement confirmé
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('cart', JSON.stringify([]))
+                }
             } else {
                 setStatus('error')
             }

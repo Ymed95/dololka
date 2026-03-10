@@ -116,7 +116,7 @@ function CartPageContent() {
             }
 
             if (data.url) {
-                clearCart()
+                // Ne pas vider le panier avant le paiement — on le vide seulement après succès
                 window.location.href = data.url
             } else {
                 alert('Erreur : impossible de rediriger vers la page de paiement')
@@ -216,6 +216,7 @@ function CartPageContent() {
                                                         <h3 className="text-lg font-bold mb-1 truncate">{item.product?.name}</h3>
                                                         {item.size && <p className="text-sm text-gray-600">Taille: {item.size}</p>}
                                                         {item.color && <p className="text-sm text-gray-600">Couleur: {item.color}</p>}
+                                                        {(item.quantity || 1) > 1 && <p className="text-sm text-gray-600">Quantité: {item.quantity}</p>}
                                                         <p className="font-bold text-primary-600 mt-1">{item.totalPrice?.toFixed(2)}€</p>
                                                     </div>
                                                     <button
@@ -341,7 +342,7 @@ function CartPageContent() {
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium truncate">{item.product?.name}</p>
                                                 <p className="text-sm text-gray-500">
-                                                    {[item.size, item.color].filter(Boolean).join(' - ')}
+                                                    {[item.size, item.color, (item.quantity || 1) > 1 ? `Qté: ${item.quantity}` : null].filter(Boolean).join(' - ')}
                                                 </p>
                                             </div>
                                             <p className="font-bold text-primary-600">{item.totalPrice?.toFixed(2)}€</p>

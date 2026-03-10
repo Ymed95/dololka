@@ -41,6 +41,8 @@ module.exports = {
                 'fade-in': 'fadeIn 0.3s ease-in-out',
                 'slide-up': 'slideUp 0.4s ease-out',
                 'bounce-soft': 'bounceSoft 0.6s ease-in-out',
+                'float': 'float 6s ease-in-out infinite',
+                'glow': 'glow 2s ease-in-out infinite alternate',
             },
             keyframes: {
                 fadeIn: {
@@ -54,6 +56,14 @@ module.exports = {
                 bounceSoft: {
                     '0%, 100%': { transform: 'translateY(0)' },
                     '50%': { transform: 'translateY(-10px)' },
+                },
+                float: {
+                    '0%, 100%': { transform: 'translateY(0)' },
+                    '50%': { transform: 'translateY(-8px)' },
+                },
+                glow: {
+                    '0%': { boxShadow: '0 0 20px rgba(3, 54, 62, 0.3)' },
+                    '100%': { boxShadow: '0 0 40px rgba(254, 155, 121, 0.4)' },
                 },
             },
         },
