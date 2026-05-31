@@ -3,10 +3,26 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/ui/Button'
-import { CustomizationCanvas, CustomizationConfig } from '@/components/customizer/CustomizationCanvas'
 import { ArrowLeft, ShoppingCart } from 'lucide-react'
+import { useCartStore } from '@/lib/stores/cartStore'
+import { uploadDataUrl } from '@/lib/production/uploadAsset'
+import type { CustomizationData } from '@/lib/types/customization'
+
+// react-konva ne fonctionne qu'au navigateur : chargement côté client uniquement.
+const CustomizationCanvas = dynamic(
+    () => import('@/components/customizer/CustomizationCanvas').then((m) => m.CustomizationCanvas),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="bg-white rounded-xl shadow-lg p-12 flex items-center justify-center h-96">
+                <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        ),
+    }
+)
 
 interface Product {
     id: string
@@ -40,6 +56,7 @@ const productColors = [
 
 export default function CustomizePage({ params }: { params: { id: string } }) {
     const router = useRouter()
+    const addItem = useCartStore((s) => s.addItem)
     const [product, setProduct] = useState<Product | null>(null)
     const [loading, setLoading] = useState(true)
     const [selectedSize, setSelectedSize] = useState<string>('M')
@@ -67,30 +84,48 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
         fetchProduct()
     }, [params.id])
 
-    const handleSaveCustomization = (config: CustomizationConfig) => {
+    const handleSaveCustomization = async (data: CustomizationData) => {
         if (!product) return
 
-        console.log('Customization saved:', config)
+        // Upload des assets (design + rendus de production) pour alléger le
+        // panier et la DB. Le design est partagé entre les vues : on l'upload
+        // une seule fois et on réutilise l'URL.
+        let sharedDesignUrl: string | undefined
+        const uploadedViews = await Promise.all(
+            data.views.map(async (view) => {
+                let designFileUrl = view.designFileUrl
+                if (designFileUrl?.startsWith('data:')) {
+                    sharedDesignUrl =
+                        sharedDesignUrl || (await uploadDataUrl(designFileUrl, 'design'))
+                    designFileUrl = sharedDesignUrl
+                }
+                const productionImageUrl = view.productionImageUrl?.startsWith('data:')
+                    ? await uploadDataUrl(view.productionImageUrl, `prod-${view.viewId}`)
+                    : view.productionImageUrl
+                return { ...view, designFileUrl, productionImageUrl }
+            })
+        )
 
-        // Save to cart
+        const customization: CustomizationData = { ...data, views: uploadedViews }
+
         const qty = Math.max(1, Math.min(99, quantity))
-        const cartItem = {
+        addItem({
             productId: params.id,
-            product: product,
-            customization: config,
+            product: {
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
+                category: product.category,
+            },
             size: selectedSize,
             color: selectedColor.name,
             quantity: qty,
+            unitPrice: product.price,
             totalPrice: product.price * qty,
-        }
+            customization,
+        })
 
-        // Store in localStorage for demo
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-        cart.push(cartItem)
-        localStorage.setItem('cart', JSON.stringify(cart))
-
-        // Navigate to cart
-        alert('Produit ajouté au panier !')
         router.push('/cart')
     }
 
@@ -281,6 +316,7 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                             productBackUrl={product.mockupUrl || product.imageUrl}
                             productType={product.category as any}
                             baseColor={selectedColor.value}
+                            baseColorName={selectedColor.name}
                             productName={product.name}
                             productViews={
                                 product.category === 'car'

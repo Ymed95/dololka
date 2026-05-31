@@ -8,7 +8,13 @@ import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Package, Download, X, Eye, User, MapPin, FileImage } from 'lucide-react'
-import { OrderDesignPreview } from '@/components/admin/OrderDesignPreview'
+import dynamic from 'next/dynamic'
+
+// Composant basé sur react-konva → chargement client uniquement (pas de SSR).
+const OrderDesignPreview = dynamic(
+    () => import('@/components/admin/OrderDesignPreview').then((m) => m.OrderDesignPreview),
+    { ssr: false }
+)
 
 const statusLabels: Record<string, string> = {
     pending_payment: 'En attente de paiement',
@@ -91,15 +97,21 @@ export default function AdminOrders() {
         }
     }
 
-    const handleDownloadDesign = (order: any) => {
-        if (!order.designFileUrl) return
-
+    const downloadUrl = (url: string, filename: string) => {
         const link = document.createElement('a')
-        link.href = order.designFileUrl
-        link.download = order.designFileName || `design-commande-${order.id.slice(0, 8)}.png`
+        link.href = url
+        link.download = filename
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
+    }
+
+    const handleDownloadDesign = (order: any) => {
+        if (!order.designFileUrl) return
+        downloadUrl(
+            order.designFileUrl,
+            order.designFileName || `design-commande-${order.id.slice(0, 8)}.png`
+        )
     }
 
     const viewOrderDetail = async (orderId: string) => {
@@ -311,6 +323,16 @@ export default function AdminOrders() {
                                     <MapPin className="w-4 h-4" /> Personnalisation
                                 </h3>
                                 <div className="text-sm text-gray-700 space-y-2">
+                                    {selectedOrder.baseColor && (
+                                        <p className="flex items-center gap-2">
+                                            <span className="font-medium">Couleur du vêtement :</span>
+                                            <span
+                                                className="inline-block w-5 h-5 rounded-full border border-gray-300"
+                                                style={{ backgroundColor: selectedOrder.baseColor }}
+                                            />
+                                            <span>{selectedOrder.customizationData?.baseColorName || selectedOrder.baseColor}</span>
+                                        </p>
+                                    )}
                                     {selectedOrder.position && (
                                         <p><span className="font-medium">Position :</span> {selectedOrder.position}</p>
                                     )}
@@ -325,6 +347,47 @@ export default function AdminOrders() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Assets de production (rendus HD multi-vues) */}
+                            {Array.isArray(selectedOrder.customizationData?.views) &&
+                                selectedOrder.customizationData.views.some((v: any) => v.productionImageUrl) && (
+                                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5 mb-6">
+                                    <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                        <FileImage className="w-4 h-4" /> Fichiers de production
+                                    </h3>
+                                    <p className="text-xs text-gray-600 mb-4">
+                                        Rendus haute résolution (produit + couleur + design) prêts pour l'impression.
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {selectedOrder.customizationData.views
+                                            .filter((v: any) => v.productionImageUrl)
+                                            .map((v: any) => (
+                                                <div key={v.viewId} className="bg-white rounded-lg p-3 border border-green-100">
+                                                    <p className="text-xs font-medium text-gray-700 mb-2">{v.label}</p>
+                                                    <div className="bg-gray-50 rounded flex items-center justify-center mb-3" style={{ minHeight: 140 }}>
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={v.productionImageUrl}
+                                                            alt={`Rendu production ${v.label}`}
+                                                            className="max-w-full max-h-48 object-contain"
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="w-full"
+                                                        onClick={() => downloadUrl(
+                                                            v.productionImageUrl,
+                                                            `production-${selectedOrder.id.slice(0, 8)}-${v.viewId}.png`
+                                                        )}
+                                                    >
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        Télécharger ({v.label})
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Design File */}
                             <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 mb-6">

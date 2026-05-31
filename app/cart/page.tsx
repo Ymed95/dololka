@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { ShoppingCart, Trash2, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { useCartStore } from '@/lib/stores/cartStore'
+import type { CheckoutItemPayload } from '@/lib/types/customization'
 
 interface ShippingInfo {
     firstName: string
@@ -28,7 +30,11 @@ function CartPageContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const cancelled = searchParams.get('cancelled')
-    const [cartItems, setCartItems] = useState<any[]>([])
+    const cartItems = useCartStore((s) => s.items)
+    const removeItem = useCartStore((s) => s.removeItem)
+    const clearCart = useCartStore((s) => s.clearCart)
+    const getTotalPrice = useCartStore((s) => s.getTotalPrice)
+    const [mounted, setMounted] = useState(false)
     const [step, setStep] = useState<'cart' | 'shipping' | 'confirm'>('cart')
     const [ordering, setOrdering] = useState(false)
     const [shipping, setShipping] = useState<ShippingInfo>({
@@ -43,12 +49,18 @@ function CartPageContent() {
         notes: '',
     })
 
+    // Évite tout mismatch d'hydratation : le panier persisté n'est lu qu'après montage.
     useEffect(() => {
-        const savedCart = localStorage.getItem('cart')
-        if (savedCart) {
-            setCartItems(JSON.parse(savedCart))
-        }
+        setMounted(true)
     }, [])
+
+    // En cas de paiement annulé/échoué : on nettoie les commandes orphelines
+    // restées en "pending_payment", tout en conservant le panier intact.
+    useEffect(() => {
+        if (cancelled) {
+            fetch('/api/checkout/cancel', { method: 'POST' }).catch(() => {})
+        }
+    }, [cancelled])
 
     useEffect(() => {
         if (session?.user) {
@@ -61,19 +73,7 @@ function CartPageContent() {
         }
     }, [session])
 
-    const removeItem = (index: number) => {
-        const newCart = [...cartItems]
-        newCart.splice(index, 1)
-        setCartItems(newCart)
-        localStorage.setItem('cart', JSON.stringify(newCart))
-    }
-
-    const clearCart = () => {
-        setCartItems([])
-        localStorage.setItem('cart', JSON.stringify([]))
-    }
-
-    const total = cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
+    const total = getTotalPrice()
 
     const handleGoToShipping = () => {
         if (!session) {
@@ -96,7 +96,7 @@ function CartPageContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    items: cartItems.map(item => ({
+                    items: cartItems.map((item): CheckoutItemPayload => ({
                         productId: item.productId,
                         size: item.size,
                         color: item.color,
@@ -127,6 +127,17 @@ function CartPageContent() {
             alert('Une erreur est survenue. Veuillez réessayer.')
             setOrdering(false)
         }
+    }
+
+    if (!mounted) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -196,8 +207,8 @@ function CartPageContent() {
                         ) : (
                             <>
                                 <div className="space-y-4 mb-8">
-                                    {cartItems.map((item, index) => (
-                                        <Card key={index}>
+                                    {cartItems.map((item) => (
+                                        <Card key={item.id}>
                                             <CardContent className="p-6">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-24 h-24 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden relative flex-shrink-0">
@@ -220,7 +231,7 @@ function CartPageContent() {
                                                         <p className="font-bold text-primary-600 mt-1">{item.totalPrice?.toFixed(2)}€</p>
                                                     </div>
                                                     <button
-                                                        onClick={() => removeItem(index)}
+                                                        onClick={() => removeItem(item.id)}
                                                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
                                                     >
                                                         <Trash2 className="w-5 h-5" />
@@ -330,8 +341,8 @@ function CartPageContent() {
                             <CardContent className="p-6">
                                 <h2 className="text-xl font-bold mb-4">Articles</h2>
                                 <div className="divide-y">
-                                    {cartItems.map((item, index) => (
-                                        <div key={index} className="flex items-center gap-4 py-3">
+                                    {cartItems.map((item) => (
+                                        <div key={item.id} className="flex items-center gap-4 py-3">
                                             <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden relative flex-shrink-0">
                                                 {item.product?.imageUrl ? (
                                                     <Image src={item.product.imageUrl} alt={item.product.name} fill className="object-contain p-1" />

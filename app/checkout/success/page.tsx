@@ -8,10 +8,12 @@ import { Footer } from '@/components/Footer'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CheckCircle, Package, AlertCircle } from 'lucide-react'
+import { useCartStore } from '@/lib/stores/cartStore'
 
 function CheckoutSuccessContent() {
     const searchParams = useSearchParams()
     const sessionId = searchParams.get('session_id')
+    const clearCart = useCartStore((s) => s.clearCart)
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
 
     useEffect(() => {
@@ -20,6 +22,7 @@ function CheckoutSuccessContent() {
         } else {
             setStatus('success')
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionId])
 
     const verifyPayment = async () => {
@@ -28,9 +31,7 @@ function CheckoutSuccessContent() {
             if (res.ok) {
                 setStatus('success')
                 // Vider le panier uniquement après paiement confirmé
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('cart', JSON.stringify([]))
-                }
+                clearCart()
             } else {
                 setStatus('error')
             }
