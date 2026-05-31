@@ -32,6 +32,16 @@ interface Product {
     category: string
     imageUrl: string
     mockupUrl?: string | null
+    model3dUrl?: string | null
+}
+
+// Modèles GLB de scaffold fournis par défaut selon la catégorie produit.
+const DEFAULT_MODELS: Record<string, string> = {
+    tshirt: '/models/tshirt.glb',
+    hoodie: '/models/hoodie.glb',
+    sweatshirt: '/models/hoodie.glb',
+    cap: '/models/cap.glb',
+    mug: '/models/mug.glb',
 }
 
 const productSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -317,6 +327,7 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                             productType={product.category as any}
                             baseColor={selectedColor.value}
                             baseColorName={selectedColor.name}
+                            model3dUrl={product.model3dUrl || DEFAULT_MODELS[product.category]}
                             productName={product.name}
                             productViews={
                                 product.category === 'car'

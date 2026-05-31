@@ -31,6 +31,8 @@ interface CustomizationCanvasProps {
     baseColorName?: string
     productName?: string
     productViews?: ProductView[]
+    /** Modèle GLB pour l'aperçu 3D réaliste (design projeté en Decal). */
+    model3dUrl?: string
     onSave: (data: CustomizationData) => void | Promise<void>
 }
 
@@ -169,6 +171,7 @@ export const CustomizationCanvas = ({
     baseColorName,
     productName,
     productViews,
+    model3dUrl,
     onSave
 }: CustomizationCanvasProps) => {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -176,7 +179,7 @@ export const CustomizationCanvas = ({
     const [isSaving, setIsSaving] = useState(false)
     const [show3D, setShow3D] = useState(false)
     const [is3DLoading, setIs3DLoading] = useState(false)
-    const [textures3D, setTextures3D] = useState<{ front: string; back?: string }>({ front: '' })
+    const [textures3D, setTextures3D] = useState<{ front: string; back?: string; design?: string; aspect: number }>({ front: '', aspect: 1 })
     const views = useMemo<ProductView[]>(() => {
         if (productViews && productViews.length > 0) {
             return productViews
@@ -346,7 +349,10 @@ export const CustomizationCanvas = ({
             const back = backView
                 ? await renderViewToDataURL(buildViewDesign(backView), { baseColor, pixelRatio: 2 })
                 : undefined
-            setTextures3D({ front, back })
+            // Ratio du design (pour le Decal en mode GLB), basé sur la vue avant.
+            const frontCfg = designConfigs[frontView.id] || defaultDesignConfig
+            const aspect = frontCfg.height > 0 ? frontCfg.width / frontCfg.height : 1
+            setTextures3D({ front, back, design: uploadedImage || undefined, aspect })
             setShow3D(true)
         } catch (err) {
             console.error('Aperçu 3D impossible', err)
@@ -592,6 +598,9 @@ export const CustomizationCanvas = ({
                             </button>
                         </div>
                         <Product3DViewer
+                            modelUrl={model3dUrl}
+                            designTextureUrl={textures3D.design}
+                            decalAspect={textures3D.aspect}
                             frontTextureUrl={textures3D.front}
                             backTextureUrl={textures3D.back}
                             productType={productType}
