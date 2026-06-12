@@ -62,7 +62,6 @@ const mainServices = [
 const stats = [
     { value: '150+', label: 'Projets réalisés' },
     { value: '95%', label: 'Clients satisfaits' },
-    { value: '12', label: 'Services proposés' },
     { value: '360°', label: 'Accompagnement' },
 ]
 

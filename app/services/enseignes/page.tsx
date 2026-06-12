@@ -6,8 +6,8 @@ export default function EnseignesPage() {
         <ServiceDetail
             icon={Building2}
             title="Enseignes Sur Mesure"
-            subtitle="Signalétique, enseignes lumineuses, habillage vitrine et covering personnalisé"
-            description="Dololka Agency conçoit et réalise des enseignes et de la signalétique sur mesure pour valoriser votre commerce ou votre entreprise. De l’enseigne lumineuse à l’habillage vitrine en passant par le covering véhicule, nous créons des solutions durables et impactantes qui renforcent votre visibilité."
+            subtitle="Signalétique, enseignes lumineuses, vitrophanie et covering personnalisé"
+            description="Dololka Agency conçoit et réalise des enseignes et de la signalétique sur mesure pour valoriser votre commerce ou votre entreprise. De l’enseigne lumineuse à l’vitrophanie en passant par le covering véhicule, nous créons des solutions durables et impactantes qui renforcent votre visibilité."
             features={[
                 'Enseignes lumineuses (néon, LED, lettres 3D)',
                 'Signalétique intérieure et extérieure',
@@ -40,7 +40,7 @@ export default function EnseignesPage() {
             faq={[
                 {
                     q: 'Quels types d’enseignes proposez-vous ?',
-                    a: 'Enseignes lumineuses (LED, néon), lettres en relief (alu, acrylique, bois), panneaux, totems, habillage vitrine (adhésifs, stores) et covering véhicule.',
+                    a: 'Enseignes lumineuses (LED, néon), lettres en relief (alu, acrylique, bois), panneaux, totems, vitrophanie (adhésifs, stores) et covering véhicule.',
                 },
                 {
                     q: 'Faut-il une autorisation pour une enseigne ?',

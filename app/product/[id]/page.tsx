@@ -7,7 +7,7 @@ import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Palette } from 'lucide-react'
+import { Palette, FileText } from 'lucide-react'
 
 interface Product {
     id: string
@@ -195,9 +195,11 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                             <h1 className="text-4xl font-bold text-gray-900 mb-4">
                                 {product.name}
                             </h1>
-                            <p className="text-2xl font-bold text-primary-600 mb-6">
-                                {product.price.toFixed(2)}€
-                            </p>
+                            {product.category !== 'car' && (
+                                <p className="text-2xl font-bold text-primary-600 mb-6">
+                                    {product.price.toFixed(2)}€
+                                </p>
+                            )}
                             <p className="text-lg text-gray-600 leading-relaxed">
                                 {product.description}
                             </p>
@@ -241,15 +243,31 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
                         {/* CTA */}
                         <div className="pt-6 border-t border-gray-200 space-y-3">
-                            <Link href={`/customize/${params.id}`} className="block">
-                                <Button size="lg" className="w-full text-lg">
-                                    <Palette className="w-6 h-6 mr-2" />
-                                    Personnaliser ce produit
-                                </Button>
-                            </Link>
-                            <p className="text-sm text-center text-gray-500">
-                                Créez votre design unique en quelques clics
-                            </p>
+                            {product.category === 'car' ? (
+                                <>
+                                    <Link href="/contact" className="block">
+                                        <Button size="lg" className="w-full text-lg">
+                                            <FileText className="w-6 h-6 mr-2" />
+                                            Demander un devis
+                                        </Button>
+                                    </Link>
+                                    <p className="text-sm text-center text-gray-500">
+                                        Contactez-nous pour obtenir un devis personnalisé
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <Link href={`/customize/${params.id}`} className="block">
+                                        <Button size="lg" className="w-full text-lg">
+                                            <Palette className="w-6 h-6 mr-2" />
+                                            Personnaliser ce produit
+                                        </Button>
+                                    </Link>
+                                    <p className="text-sm text-center text-gray-500">
+                                        Créez votre design unique en quelques clics
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* Info Box */}

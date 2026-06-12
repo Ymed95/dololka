@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { Button } from '@/components/ui/Button'
-import { Search, ShoppingBag, Shirt, PenTool, ArrowRight, Palette } from 'lucide-react'
+import { Search, ShoppingBag, Shirt, PenTool, ArrowRight, Palette, Printer } from 'lucide-react'
 import { Suspense } from 'react'
 
 interface Product {
@@ -25,6 +25,7 @@ const tabs = [
     { id: 'personnalisation', label: 'Personnalisation', icon: Palette, description: 'Créez vos produits sur mesure' },
     { id: 'textile', label: 'Textile Vierge', icon: Shirt, description: 'Produits sans personnalisation' },
     { id: 'materiel', label: 'Matériel & Fournitures', icon: PenTool, description: 'Outils et consommables pro' },
+    { id: 'impression', label: 'Impression', icon: Printer, description: 'Flyers, affiches et supports imprimés' },
 ]
 
 const productCategories = [
@@ -48,6 +49,7 @@ function BoutiqueContent() {
     const [customProducts, setCustomProducts] = useState<Product[]>([])
     const [textileProducts, setTextileProducts] = useState<Product[]>([])
     const [materielProducts, setMaterielProducts] = useState<Product[]>([])
+    const [impressionProducts, setImpressionProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
@@ -75,6 +77,10 @@ function BoutiqueContent() {
                 const res = await fetch('/api/products?type=materiel')
                 const data = await res.json()
                 if (Array.isArray(data)) setMaterielProducts(data)
+            } else if (activeTab === 'impression') {
+                const res = await fetch('/api/products?type=impression')
+                const data = await res.json()
+                if (Array.isArray(data)) setImpressionProducts(data)
             }
         } catch {
             // silently fail
@@ -85,6 +91,7 @@ function BoutiqueContent() {
 
     const currentProducts = activeTab === 'personnalisation' ? customProducts
         : activeTab === 'textile' ? textileProducts
+        : activeTab === 'impression' ? impressionProducts
         : materielProducts
 
     return (
@@ -184,6 +191,13 @@ function BoutiqueContent() {
                     </div>
                 )}
 
+                {activeTab === 'impression' && (
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold mb-2">Impression</h2>
+                        <p className="text-gray-600">Flyers, affiches, cartes de visite et tous vos supports imprimés</p>
+                    </div>
+                )}
+
                 {/* Products */}
                 {loading ? (
                     <div className="text-center py-12">
@@ -217,6 +231,8 @@ function BoutiqueContent() {
                                     <div className="aspect-square bg-gray-50 flex items-center justify-center">
                                         {activeTab === 'materiel' ? (
                                             <PenTool className="w-12 h-12 text-gray-300" />
+                                        ) : activeTab === 'impression' ? (
+                                            <Printer className="w-12 h-12 text-gray-300" />
                                         ) : (
                                             <Shirt className="w-12 h-12 text-gray-300" />
                                         )}
@@ -247,7 +263,7 @@ function BoutiqueContent() {
                 )}
 
                 {/* CTA */}
-                {(activeTab === 'textile' || activeTab === 'materiel') && currentProducts.length > 0 && (
+                {(activeTab === 'textile' || activeTab === 'materiel' || activeTab === 'impression') && currentProducts.length > 0 && (
                     <div className="mt-8 bg-primary-50 rounded-2xl p-6 md:p-8 text-center border border-primary-100">
                         <h3 className="text-lg font-bold mb-2">Besoin de quantités ou de références spécifiques ?</h3>
                         <p className="text-gray-600 text-sm mb-4">Contactez-nous pour un devis personnalisé</p>

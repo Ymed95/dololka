@@ -45,7 +45,7 @@ const services = [
     {
         icon: Building2,
         title: 'Enseignes sur mesure',
-        description: 'Conception et fabrication d\'enseignes lumineuses, signalétique, habillage vitrine et covering.',
+        description: 'Conception et fabrication d\'enseignes lumineuses, signalétique, vitrophanie et covering.',
         href: '/services/enseignes',
         features: ['Enseigne lumineuse', 'Signalétique', 'Vitrine', 'Covering'],
     },
