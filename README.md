@@ -151,4 +151,5 @@ Pour toute question ou problème, consultez la documentation Next.js et Prisma, 
 ## 📄 Licence
 
 Projet privé - Tous droits réservés
-\`\`\`
+\`\`\
+ 
