@@ -5,12 +5,23 @@ import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { ShoppingCart, Trash2, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useCartStore } from '@/lib/stores/cartStore'
+
+const STEP_ORDER = ['cart', 'shipping', 'confirm'] as const
+
+// Variantes de transition entre étapes : glissement directionnel + fondu.
+// `custom` = direction (1 = on avance, -1 = on recule).
+const stepVariants = {
+    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 60 : -60 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -60 : 60 }),
+}
 import type { CheckoutItemPayload } from '@/lib/types/customization'
 
 interface ShippingInfo {
@@ -36,7 +47,14 @@ function CartPageContent() {
     const getTotalPrice = useCartStore((s) => s.getTotalPrice)
     const [mounted, setMounted] = useState(false)
     const [step, setStep] = useState<'cart' | 'shipping' | 'confirm'>('cart')
+    const [direction, setDirection] = useState(1)
     const [ordering, setOrdering] = useState(false)
+
+    // Change d'étape en calculant la direction (avance/recul) pour l'animation.
+    const goToStep = (next: 'cart' | 'shipping' | 'confirm') => {
+        setDirection(STEP_ORDER.indexOf(next) >= STEP_ORDER.indexOf(step) ? 1 : -1)
+        setStep(next)
+    }
     const [shipping, setShipping] = useState<ShippingInfo>({
         firstName: '',
         lastName: '',
@@ -80,12 +98,12 @@ function CartPageContent() {
             router.push('/login?redirect=/cart')
             return
         }
-        setStep('shipping')
+        goToStep('shipping')
     }
 
     const handleGoToConfirm = (e: React.FormEvent) => {
         e.preventDefault()
-        setStep('confirm')
+        goToStep('confirm')
     }
 
     const handlePlaceOrder = async () => {
@@ -159,42 +177,91 @@ function CartPageContent() {
                             { key: 'cart', label: 'Panier', num: 1 },
                             { key: 'shipping', label: 'Livraison', num: 2 },
                             { key: 'confirm', label: 'Confirmation', num: 3 },
-                        ].map((s, i) => (
-                            <div key={s.key} className="flex items-center gap-2">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                    step === s.key
-                                        ? 'bg-primary-600 text-white'
-                                        : ['cart', 'shipping', 'confirm'].indexOf(step) > i
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-gray-200 text-gray-500'
-                                }`}>
-                                    {['cart', 'shipping', 'confirm'].indexOf(step) > i ? (
-                                        <CheckCircle className="w-5 h-5" />
-                                    ) : s.num}
+                        ].map((s, i) => {
+                            const currentIndex = STEP_ORDER.indexOf(step)
+                            const done = currentIndex > i
+                            const active = step === s.key
+                            return (
+                                <div key={s.key} className="flex items-center gap-2">
+                                    <motion.div
+                                        animate={{
+                                            scale: active ? 1.12 : 1,
+                                            backgroundColor: active ? '#08867e' : done ? '#22c55e' : '#e5e7eb',
+                                            color: active || done ? '#ffffff' : '#6b7280',
+                                        }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                                        className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm"
+                                    >
+                                        <AnimatePresence mode="wait" initial={false}>
+                                            {done ? (
+                                                <motion.span
+                                                    key="check"
+                                                    initial={{ scale: 0, rotate: -90 }}
+                                                    animate={{ scale: 1, rotate: 0 }}
+                                                    exit={{ scale: 0 }}
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                                                >
+                                                    <CheckCircle className="w-5 h-5" />
+                                                </motion.span>
+                                            ) : (
+                                                <motion.span key="num" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                                    {s.num}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    </motion.div>
+                                    <span className={`text-sm font-medium transition-colors duration-300 ${active ? 'text-primary-700' : done ? 'text-green-600' : 'text-gray-500'}`}>
+                                        {s.label}
+                                    </span>
+                                    {i < 2 && (
+                                        <div className="w-12 h-0.5 bg-gray-200 mx-2 rounded-full overflow-hidden">
+                                            <motion.div
+                                                className="h-full bg-green-500"
+                                                initial={false}
+                                                animate={{ width: done ? '100%' : '0%' }}
+                                                transition={{ duration: 0.4, ease: 'easeInOut' }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
-                                <span className={`text-sm font-medium ${step === s.key ? 'text-primary-700' : 'text-gray-500'}`}>
-                                    {s.label}
-                                </span>
-                                {i < 2 && <div className="w-12 h-px bg-gray-300 mx-2" />}
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 )}
 
-                <h1 className="text-4xl font-bold mb-2">
-                    {step === 'cart' && 'Panier'}
-                    {step === 'shipping' && 'Adresse de livraison'}
-                    {step === 'confirm' && 'Récapitulatif'}
-                </h1>
-                <p className="text-gray-600 mb-8">
-                    {step === 'cart' && `${cartItems.length} article(s)`}
-                    {step === 'shipping' && 'Renseignez vos informations de livraison'}
-                    {step === 'confirm' && 'Vérifiez votre commande avant de valider'}
-                </p>
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={step}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.25 }}
+                    >
+                        <h1 className="text-4xl font-bold mb-2">
+                            {step === 'cart' && 'Panier'}
+                            {step === 'shipping' && 'Adresse de livraison'}
+                            {step === 'confirm' && 'Récapitulatif'}
+                        </h1>
+                        <p className="text-gray-600 mb-8">
+                            {step === 'cart' && `${cartItems.length} article(s)`}
+                            {step === 'shipping' && 'Renseignez vos informations de livraison'}
+                            {step === 'confirm' && 'Vérifiez votre commande avant de valider'}
+                        </p>
+                    </motion.div>
+                </AnimatePresence>
 
+                <AnimatePresence mode="wait" custom={direction}>
                 {/* STEP 1 : CART */}
                 {step === 'cart' && (
-                    <>
+                    <motion.div
+                        key="step-cart"
+                        custom={direction}
+                        variants={stepVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    >
                         {cartItems.length === 0 ? (
                             <Card>
                                 <CardContent className="p-12 text-center">
@@ -207,39 +274,52 @@ function CartPageContent() {
                         ) : (
                             <>
                                 <div className="space-y-4 mb-8">
-                                    {cartItems.map((item) => (
-                                        <Card key={item.id}>
-                                            <CardContent className="p-6">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="w-24 h-24 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden relative flex-shrink-0">
-                                                        {item.product?.imageUrl ? (
-                                                            <Image
-                                                                src={item.product.imageUrl}
-                                                                alt={item.product.name}
-                                                                fill
-                                                                className="object-contain p-2"
-                                                            />
-                                                        ) : (
-                                                            <ShoppingCart className="w-12 h-12 text-gray-400" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="text-lg font-bold mb-1 truncate">{item.product?.name}</h3>
-                                                        {item.size && <p className="text-sm text-gray-600">Taille: {item.size}</p>}
-                                                        {item.color && <p className="text-sm text-gray-600">Couleur: {item.color}</p>}
-                                                        {(item.quantity || 1) > 1 && <p className="text-sm text-gray-600">Quantité: {item.quantity}</p>}
-                                                        <p className="font-bold text-primary-600 mt-1">{item.totalPrice?.toFixed(2)}€</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => removeItem(item.id)}
-                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+                                    <AnimatePresence initial={false}>
+                                        {cartItems.map((item, i) => (
+                                            <motion.div
+                                                key={item.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, x: -80, transition: { duration: 0.2 } }}
+                                                transition={{ delay: i * 0.06, type: 'spring', stiffness: 300, damping: 26 }}
+                                            >
+                                                <Card>
+                                                    <CardContent className="p-6">
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="w-24 h-24 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden relative flex-shrink-0">
+                                                                {item.product?.imageUrl ? (
+                                                                    <Image
+                                                                        src={item.product.imageUrl}
+                                                                        alt={item.product.name}
+                                                                        fill
+                                                                        className="object-contain p-2"
+                                                                    />
+                                                                ) : (
+                                                                    <ShoppingCart className="w-12 h-12 text-gray-400" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="text-lg font-bold mb-1 truncate">{item.product?.name}</h3>
+                                                                {item.size && <p className="text-sm text-gray-600">Taille: {item.size}</p>}
+                                                                {item.color && <p className="text-sm text-gray-600">Couleur: {item.color}</p>}
+                                                                {(item.quantity || 1) > 1 && <p className="text-sm text-gray-600">Quantité: {item.quantity}</p>}
+                                                                <p className="font-bold text-primary-600 mt-1">{item.totalPrice?.toFixed(2)}€</p>
+                                                            </div>
+                                                            <motion.button
+                                                                whileHover={{ scale: 1.15 }}
+                                                                whileTap={{ scale: 0.9 }}
+                                                                onClick={() => removeItem(item.id)}
+                                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </motion.button>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
                                 </div>
 
                                 <Card className="bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -261,12 +341,21 @@ function CartPageContent() {
                                 </Card>
                             </>
                         )}
-                    </>
+                    </motion.div>
                 )}
 
                 {/* STEP 2 : SHIPPING */}
                 {step === 'shipping' && (
-                    <form onSubmit={handleGoToConfirm}>
+                    <motion.form
+                        key="step-shipping"
+                        custom={direction}
+                        variants={stepVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        onSubmit={handleGoToConfirm}
+                    >
                         <Card>
                             <CardContent className="p-8 space-y-6">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -319,7 +408,7 @@ function CartPageContent() {
                                 </div>
 
                                 <div className="flex gap-3 pt-4">
-                                    <Button type="button" variant="outline" onClick={() => setStep('cart')}>
+                                    <Button type="button" variant="outline" onClick={() => goToStep('cart')}>
                                         <ArrowLeft className="w-4 h-4 mr-2" />
                                         Retour
                                     </Button>
@@ -330,12 +419,21 @@ function CartPageContent() {
                                 </div>
                             </CardContent>
                         </Card>
-                    </form>
+                    </motion.form>
                 )}
 
                 {/* STEP 3 : CONFIRM */}
                 {step === 'confirm' && (
-                    <div className="space-y-6">
+                    <motion.div
+                        key="step-confirm"
+                        custom={direction}
+                        variants={stepVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="space-y-6"
+                    >
                         {/* Order Summary */}
                         <Card>
                             <CardContent className="p-6">
@@ -383,16 +481,24 @@ function CartPageContent() {
                         </Card>
 
                         <div className="flex gap-3">
-                            <Button variant="outline" onClick={() => setStep('shipping')}>
+                            <Button variant="outline" onClick={() => goToStep('shipping')}>
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Modifier
                             </Button>
-                            <Button className="flex-1" size="lg" onClick={handlePlaceOrder} disabled={ordering}>
-                                {ordering ? 'Redirection vers le paiement...' : 'Payer maintenant'}
-                            </Button>
+                            <motion.div className="flex-1" whileHover={{ scale: ordering ? 1 : 1.02 }} whileTap={{ scale: ordering ? 1 : 0.98 }}>
+                                <Button className="w-full" size="lg" onClick={handlePlaceOrder} disabled={ordering}>
+                                    {ordering ? (
+                                        <span className="flex items-center justify-center">
+                                            <span className="w-4 h-4 mr-2 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                            Redirection vers le paiement...
+                                        </span>
+                                    ) : 'Payer maintenant'}
+                                </Button>
+                            </motion.div>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
+                </AnimatePresence>
             </div>
         </div>
     )
