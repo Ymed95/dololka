@@ -164,9 +164,11 @@ export default function AgencePage() {
                                     'Gestion et animation des réseaux sociaux',
                                     'Campagnes publicitaires (Meta, Google, TikTok)',
                                     'Création de contenu photo & vidéo',
-                                    'Conception d\'enseignes et signalétique',
+                                    'Conception d\'enseignes, signalétique & vitrophanie',
                                     'Production textile & personnalisation',
                                     'Conseil en stratégie & développement',
+                                    'Stratégie logistique',
+                                    'Aménagement de locaux',
                                     'Lancement et accompagnement de marques',
                                     'E-commerce & vente en ligne',
                                 ].map((item) => (

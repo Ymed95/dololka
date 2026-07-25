@@ -7,9 +7,10 @@ import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { Button } from '@/components/ui/Button'
 import {
-    Globe, Palette, Megaphone, Camera, Shirt, PenTool, BarChart3,
-    ShoppingBag, Users, ArrowRight, Star, CheckCircle2
+    Globe, Palette, Megaphone, Camera, Shirt, PenTool,
+    ShoppingBag, Users, ArrowRight, Star, CheckCircle2, BarChart3
 } from 'lucide-react'
+import { getServiceIcon } from '@/lib/serviceIcons'
 
 const heroServices = [
     { icon: Globe, label: 'Sites Web' },
@@ -20,54 +21,33 @@ const heroServices = [
     { icon: PenTool, label: 'Branding' },
 ]
 
-const mainServices = [
-    {
-        icon: Globe,
-        title: 'Création de Sites Internet',
-        description: 'Sites vitrines, e-commerce, landing pages. Design moderne et optimisé pour la conversion.',
-        href: '/services/creation-site',
-    },
-    {
-        icon: Palette,
-        title: 'Design & Graphisme',
-        description: 'Logos, chartes graphiques, supports print et digital. Une identité visuelle qui marque.',
-        href: '/services/graphisme',
-    },
-    {
-        icon: Megaphone,
-        title: 'Publicité & Acquisition',
-        description: 'Meta Ads, Google Ads, TikTok Ads. Des campagnes qui génèrent des résultats.',
-        href: '/services/publicite',
-    },
-    {
-        icon: BarChart3,
-        title: 'Réseaux Sociaux',
-        description: 'Stratégie, création de contenu et gestion quotidienne de vos réseaux.',
-        href: '/services/reseaux-sociaux',
-    },
-    {
-        icon: Camera,
-        title: 'Photo & Vidéo',
-        description: 'Shootings, vidéos corporate, contenu UGC. Du visuel qui capte l\'attention.',
-        href: '/services/photo-video',
-    },
-    {
-        icon: Shirt,
-        title: 'Textile & Personnalisation',
-        description: 'Personnalisez vos produits textiles avec notre outil en ligne intuitif.',
-        href: '/boutique',
-    },
-]
+interface HomeService {
+    slug: string
+    title: string
+    subtitle?: string
+    description: string
+    icon: string
+}
 
-const stats = [
-    { value: '150+', label: 'Projets réalisés' },
-    { value: '95%', label: 'Clients satisfaits' },
-    { value: '360°', label: 'Accompagnement' },
+interface HomeStat {
+    id: string
+    value: string
+    label: string
+}
+
+// Valeurs de repli affichées pendant le chargement / si l'API échoue.
+const FALLBACK_STATS: HomeStat[] = [
+    { id: 'f1', value: '150+', label: 'Projets réalisés' },
+    { id: 'f2', value: '95%', label: 'Clients satisfaits' },
+    { id: 'f3', value: '360°', label: 'Accompagnement' },
 ]
 
 export default function HomePage() {
     const [products, setProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    // Services & stats gérés depuis l'espace admin.
+    const [services, setServices] = useState<HomeService[]>([])
+    const [stats, setStats] = useState<HomeStat[]>(FALLBACK_STATS)
 
     useEffect(() => {
         fetch('/api/products?limit=6')
@@ -77,6 +57,20 @@ export default function HomePage() {
             })
             .catch(() => {})
             .finally(() => setLoading(false))
+
+        fetch('/api/services')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setServices(data.slice(0, 6))
+            })
+            .catch(() => {})
+
+        fetch('/api/stats')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setStats(data)
+            })
+            .catch(() => {})
     }, [])
 
     return (
@@ -138,19 +132,21 @@ export default function HomePage() {
                 </div>
             </section>
 
-            {/* Stats Bar */}
-            <section className="bg-gradient-to-r from-primary-50 via-white to-secondary-50 border-b border-gray-100 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-                        {stats.map((stat) => (
-                            <div key={stat.label} className="text-center p-4 rounded-2xl bg-white/60 backdrop-blur-sm border border-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300">
-                                <div className="text-3xl md:text-4xl font-black bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent mb-1">{stat.value}</div>
-                                <div className="text-sm font-medium text-gray-600">{stat.label}</div>
-                            </div>
-                        ))}
+            {/* Stats Bar — gérée depuis l'admin, toujours centrée quel que soit le nombre */}
+            {stats.length > 0 && (
+                <section className="bg-gradient-to-r from-primary-50 via-white to-secondary-50 border-b border-gray-100 shadow-sm">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                        <div className="flex flex-wrap justify-center gap-6 md:gap-8">
+                            {stats.map((stat) => (
+                                <div key={stat.id} className="text-center p-4 rounded-2xl bg-white/60 backdrop-blur-sm border border-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 w-40 sm:w-48 md:w-56">
+                                    <div className="text-3xl md:text-4xl font-black bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent mb-1">{stat.value}</div>
+                                    <div className="text-sm font-medium text-gray-600">{stat.label}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            )}
 
             {/* Services Section */}
             <section className="py-16 md:py-20 bg-gray-50">
@@ -163,16 +159,16 @@ export default function HomePage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {mainServices.map((service) => {
-                            const Icon = service.icon
+                        {services.map((service) => {
+                            const Icon = getServiceIcon(service.icon)
                             return (
-                                <Link key={service.href} href={service.href} className="group">
+                                <Link key={service.slug} href={`/services/${service.slug}`} className="group">
                                     <div className="bg-white rounded-2xl p-6 h-full border-2 border-gray-100 hover:border-primary-300 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 shadow-md">
                                         <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-lg">
                                             <Icon className="w-6 h-6 text-white" />
                                         </div>
                                         <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{service.title}</h3>
-                                        <p className="text-gray-600 text-sm leading-relaxed">{service.description}</p>
+                                        <p className="text-gray-600 text-sm leading-relaxed">{service.subtitle || service.description}</p>
                                         <div className="mt-4 flex items-center text-primary-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                                             En savoir plus <ArrowRight className="w-4 h-4 ml-1" />
                                         </div>

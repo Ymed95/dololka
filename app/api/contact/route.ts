@@ -45,6 +45,10 @@ export async function POST(request: NextRequest) {
                 content: sender
                     ? message
                     : `De : ${name} (${email})\n\n${message}`,
+                // Visiteur sans compte : on garde ses coordonnées pour que
+                // l'admin puisse lui répondre par email.
+                visitorName: sender ? null : name,
+                visitorEmail: sender ? null : email,
                 isRead: false,
             },
         })

@@ -23,7 +23,9 @@ export const Navbar = () => {
         signOut({ callbackUrl: '/' })
     }
 
-    const services = [
+    // Menu services : liste par défaut immédiate, remplacée par la liste
+    // gérée depuis l'admin dès que l'API répond.
+    const [services, setServices] = useState([
         { href: '/services/creation-site', label: 'Création de site internet' },
         { href: '/services/graphisme', label: 'Création digitale & graphisme' },
         { href: '/services/reseaux-sociaux', label: 'Gestion des réseaux sociaux' },
@@ -36,7 +38,21 @@ export const Navbar = () => {
         { href: '/services/ecommerce', label: 'E-commerce & business en ligne' },
         { href: '/services/production-textile', label: 'Production & fabrication textile' },
         { href: '/services/community', label: 'Community building & influence' },
-    ]
+    ])
+
+    useEffect(() => {
+        fetch('/api/services')
+            .then((res) => res.json())
+            .then((data) => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setServices(data.map((s: any) => ({
+                        href: `/services/${s.slug}`,
+                        label: s.title,
+                    })))
+                }
+            })
+            .catch(() => {})
+    }, [])
 
     return (
         <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -147,6 +163,12 @@ export const Navbar = () => {
                                                     </Link>
                                                     <Link href="/admin/products" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
                                                         Gestion Produits
+                                                    </Link>
+                                                    <Link href="/admin/services" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
+                                                        Gestion Services
+                                                    </Link>
+                                                    <Link href="/admin/settings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
+                                                        Réglages du site
                                                     </Link>
                                                     <Link href="/admin/orders" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>
                                                         Gestion Commandes

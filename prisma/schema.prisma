@@ -95,8 +95,42 @@ model Message {
   content     String
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
-  
+
+  // Messages du formulaire de contact envoyés par des visiteurs SANS compte :
+  // pas de User expéditeur → on garde leurs coordonnées pour répondre par email.
+  visitorName  String?
+  visitorEmail String?
+
   sender      User     @relation("SentMessages", fields: [senderId], references: [id])
   receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
   order       Order?   @relation(fields: [orderId], references: [id])
+}
+
+// Service éditable depuis l'espace admin (remplace les pages statiques).
+model Service {
+  id          String   @id @default(cuid())
+  slug        String   @unique // URL : /services/<slug>
+  title       String
+  subtitle    String   @default("")
+  description String   @default("")
+  icon        String   @default("Sparkles") // Nom d'icône lucide-react
+  features    Json?    // string[] — "Ce qui est inclus"
+  process     Json?    // { title, description }[] — "Comment ça se passe"
+  pricing     String?  // Encadré tarifs / devis
+  faq         Json?    // { q, a }[]
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Statistique affichée sur la page d'accueil, éditable depuis l'admin.
+model SiteStat {
+  id        String   @id @default(cuid())
+  value     String   // ex. "150+", "95%"
+  label     String   // ex. "Projets réalisés"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

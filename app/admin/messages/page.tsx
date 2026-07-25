@@ -43,17 +43,43 @@ export default function AdminMessages() {
 
     const adminId = (session?.user as any)?.id
 
+    // Détecte les messages venus du formulaire de contact de visiteurs SANS
+    // compte : sender = receiver = admin. Leurs coordonnées sont dans
+    // visitorName/visitorEmail (ou dans le contenu pour les anciens messages).
+    const getVisitorInfo = (msg: any): { name: string; email: string } | null => {
+        if (msg.visitorEmail) {
+            return { name: msg.visitorName || 'Visiteur', email: msg.visitorEmail }
+        }
+        // Anciens messages : "De : Nom (email)\n\n..."
+        if (msg.senderId === adminId && msg.receiverId === adminId) {
+            const m = /^De : (.+?) \(([^)]+)\)\n/.exec(msg.content || '')
+            if (m) return { name: m[1], email: m[2] }
+            return { name: 'Visiteur', email: '' }
+        }
+        return null
+    }
+
     // Group messages by conversation partner
     const conversations = messages.reduce((acc: Record<string, any>, msg) => {
-        const partnerId = msg.senderId === adminId ? msg.receiverId : msg.senderId
-        const partnerName = msg.senderId === adminId ? msg.receiver?.name : msg.sender?.name
-        const partnerEmail = msg.senderId === adminId ? msg.receiver?.email : msg.sender?.email
+        const visitor = getVisitorInfo(msg)
+
+        // Conversations visiteurs : une par adresse email (pas de compte → clé dédiée)
+        const partnerId = visitor
+            ? `visitor:${visitor.email || msg.id}`
+            : msg.senderId === adminId ? msg.receiverId : msg.senderId
+        const partnerName = visitor
+            ? visitor.name
+            : msg.senderId === adminId ? msg.receiver?.name : msg.sender?.name
+        const partnerEmail = visitor
+            ? visitor.email
+            : msg.senderId === adminId ? msg.receiver?.email : msg.sender?.email
 
         if (!acc[partnerId]) {
             acc[partnerId] = {
                 partnerId,
                 partnerName: partnerName || 'Inconnu',
                 partnerEmail: partnerEmail || '',
+                isVisitor: !!visitor,
                 messages: [],
                 unread: 0,
                 lastMessage: null,
@@ -227,50 +253,75 @@ export default function AdminMessages() {
 
                                     {/* Messages */}
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[45vh]">
-                                        {sortedMessages.map((msg: any) => (
-                                            <div
-                                                key={msg.id}
-                                                className={`max-w-[80%] ${msg.senderId === adminId
-                                                    ? 'ml-auto'
-                                                    : 'mr-auto'
-                                                    }`}
-                                            >
-                                                <div className={`rounded-xl px-4 py-3 ${msg.senderId === adminId
-                                                    ? 'bg-primary-600 text-white'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                    {msg.subject && (
-                                                        <p className={`text-xs font-bold mb-1 ${msg.senderId === adminId ? 'text-primary-100' : 'text-gray-500'}`}>
-                                                            {msg.subject}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                                        {sortedMessages.map((msg: any) => {
+                                            // Un message visiteur vient DU visiteur, même si
+                                            // techniquement sender = admin en base.
+                                            const fromAdmin = msg.senderId === adminId && !getVisitorInfo(msg)
+                                            return (
+                                                <div
+                                                    key={msg.id}
+                                                    className={`max-w-[80%] ${fromAdmin ? 'ml-auto' : 'mr-auto'}`}
+                                                >
+                                                    <div className={`rounded-xl px-4 py-3 ${fromAdmin
+                                                        ? 'bg-primary-600 text-white'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {msg.subject && (
+                                                            <p className={`text-xs font-bold mb-1 ${fromAdmin ? 'text-primary-100' : 'text-gray-500'}`}>
+                                                                {msg.subject}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                                                    </div>
+                                                    <p className={`text-xs mt-1 ${fromAdmin ? 'text-right' : ''} text-gray-400`}>
+                                                        {new Date(msg.createdAt).toLocaleDateString('fr-FR', {
+                                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                                                        })}
+                                                    </p>
                                                 </div>
-                                                <p className={`text-xs mt-1 ${msg.senderId === adminId ? 'text-right' : ''} text-gray-400`}>
-                                                    {new Date(msg.createdAt).toLocaleDateString('fr-FR', {
-                                                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                    })}
-                                                </p>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
 
-                                    {/* Reply Form */}
-                                    <form onSubmit={handleReply} className="p-4 border-t bg-gray-50">
-                                        <div className="flex gap-3">
-                                            <textarea
-                                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                                                rows={2}
-                                                placeholder="Votre réponse..."
-                                                value={replyContent}
-                                                onChange={(e) => setReplyContent(e.target.value)}
-                                                required
-                                            />
-                                            <Button type="submit" disabled={sending || !replyContent.trim()} className="self-end">
-                                                <Send className="w-4 h-4" />
-                                            </Button>
+                                    {/* Reply : messagerie interne (clients) ou email (visiteurs) */}
+                                    {currentConversation?.isVisitor ? (
+                                        <div className="p-4 border-t bg-gray-50">
+                                            {currentConversation.partnerEmail ? (
+                                                <a
+                                                    href={`mailto:${currentConversation.partnerEmail}?subject=${encodeURIComponent(`Re: ${(currentConversation.lastMessage?.subject || 'Votre message').replace(/^\[Contact( - Visiteur)?\] /, '')}`)}`}
+                                                    className="block"
+                                                >
+                                                    <Button type="button" className="w-full">
+                                                        <Send className="w-4 h-4 mr-2" />
+                                                        Répondre par email à {currentConversation.partnerEmail}
+                                                    </Button>
+                                                </a>
+                                            ) : (
+                                                <p className="text-sm text-gray-500 text-center">
+                                                    Message envoyé sans compte ni adresse email exploitable — réponse impossible.
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-gray-500 mt-2 text-center">
+                                                Ce visiteur n'a pas de compte : la réponse s'envoie par email, pas via la messagerie interne.
+                                            </p>
                                         </div>
-                                    </form>
+                                    ) : (
+                                        <form onSubmit={handleReply} className="p-4 border-t bg-gray-50">
+                                            <div className="flex gap-3">
+                                                <textarea
+                                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                                                    rows={2}
+                                                    placeholder="Votre réponse..."
+                                                    value={replyContent}
+                                                    onChange={(e) => setReplyContent(e.target.value)}
+                                                    required
+                                                />
+                                                <Button type="submit" disabled={sending || !replyContent.trim()} className="self-end">
+                                                    <Send className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    )}
                                 </>
                             )}
                         </CardContent>
