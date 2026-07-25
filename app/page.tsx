@@ -65,27 +65,6 @@ const stats = [
     { value: '360°', label: 'Accompagnement' },
 ]
 
-const testimonials = [
-    {
-        name: 'Karim B.',
-        role: 'Fondateur, KB Fashion',
-        content: 'Dololka a créé notre identité visuelle de A à Z. Le résultat est top et les retours clients sont excellents.',
-        rating: 5,
-    },
-    {
-        name: 'Sarah M.',
-        role: 'Gérante, Beauty Studio',
-        content: 'Leur gestion de nos réseaux sociaux a transformé notre visibilité. On a doublé notre nombre de followers en 3 mois.',
-        rating: 5,
-    },
-    {
-        name: 'Mehdi L.',
-        role: 'CEO, TechStart',
-        content: 'Un site e-commerce moderne et fonctionnel livré en 2 semaines. Service réactif et professionnel.',
-        rating: 5,
-    },
-]
-
 export default function HomePage() {
     const [products, setProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -328,31 +307,6 @@ export default function HomePage() {
                                 )
                             })}
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Testimonials */}
-            <section className="py-16 md:py-20 bg-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-12">
-                        <h2 className="text-3xl md:text-4xl font-bold mb-4">Ce que disent nos clients</h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {testimonials.map((t) => (
-                            <div key={t.name} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                                <div className="flex mb-3">
-                                    {Array.from({ length: t.rating }).map((_, i) => (
-                                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                    ))}
-                                </div>
-                                <p className="text-gray-700 mb-4 text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
-                                <div>
-                                    <p className="font-bold text-sm">{t.name}</p>
-                                    <p className="text-gray-500 text-xs">{t.role}</p>
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </div>
             </section>

@@ -4,13 +4,20 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
 import { ShoppingCart, User, Shield, LogOut, ChevronDown, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useCartStore } from '@/lib/stores/cartStore'
 
 export const Navbar = () => {
     const { data: session, status } = useSession()
     const [showUserMenu, setShowUserMenu] = useState(false)
     const [showServicesMenu, setShowServicesMenu] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const [mounted, setMounted] = useState(false)
+    const cartCount = useCartStore((s) => s.getItemCount())
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const handleSignOut = () => {
         signOut({ callbackUrl: '/' })
@@ -100,6 +107,11 @@ export const Navbar = () => {
                     <div className="flex items-center space-x-3">
                         <Link href="/cart" className="p-2 text-gray-700 hover:text-primary-600 transition-colors relative">
                             <ShoppingCart className="w-5 h-5" />
+                            {mounted && cartCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-secondary-600 text-white text-[10px] font-bold rounded-full">
+                                    {cartCount}
+                                </span>
+                            )}
                         </Link>
 
                         {status === 'loading' ? (

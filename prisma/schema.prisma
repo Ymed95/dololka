@@ -33,6 +33,7 @@ model Product {
   type        String   @default("customizable") // "customizable", "textile", "materiel"
   imageUrl    String
   mockupUrl   String?  // URL for 3D/2D mockup
+  model3dUrl  String?  // URL d'un modèle GLB pour l'aperçu 3D 360°
   sizes       String?  // Available sizes e.g. "XS,S,M,L,XL,2XL"
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -61,7 +62,7 @@ model Order {
   status          String   @default("pending") // "pending", "in_production", "shipped", "completed"
   totalPrice      Float
   
-  // Customization data
+  // Customization data (vue principale — rétro-compatibilité)
   designFileUrl   String?  // Path to uploaded logo/design
   designFileName  String?
   position        String?  // "front-left", "front-center", "back-center", etc.
@@ -71,6 +72,11 @@ model Order {
   designHeight    Float?   // Height of design
   designRotation  Float?   // Rotation angle
   customNotes     String?  // Additional notes from client
+
+  // Asset de production
+  baseColor         String?  // Couleur de base du vêtement (hex)
+  productionFileUrl String?  // Rendu HD composite de la vue principale
+  customizationData Json?    // Personnalisation complète multi-vues (CustomizationData)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

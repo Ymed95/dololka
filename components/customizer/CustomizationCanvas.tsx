@@ -1,29 +1,39 @@
 'use client'
 
 import { useState, useRef, useEffect, useMemo } from 'react'
+import dynamic from 'next/dynamic'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Stage, Layer, Image as KonvaImage, Transformer, Rect } from 'react-konva'
 import useImage from 'use-image'
 import { Button } from '@/components/ui/Button'
-import { Upload, RotateCw, ZoomIn, ZoomOut, Move } from 'lucide-react'
+import { Upload, RotateCw, ZoomIn, ZoomOut, Move, Loader2, Box, X } from 'lucide-react'
+import type { CustomizationData, ViewDesign } from '@/lib/types/customization'
+import { renderAllViews, renderViewToDataURL } from '@/lib/production/renderDesign'
+
+// Le viewer 3D embarque Three.js : on le charge à la demande, côté client.
+const Product3DViewer = dynamic(
+    () => import('./Product3DViewer').then((m) => m.Product3DViewer),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="flex items-center justify-center h-full text-gray-500">
+                <Loader2 className="w-6 h-6 mr-2 animate-spin" /> Chargement de la 3D…
+            </div>
+        ),
+    }
+)
 
 interface CustomizationCanvasProps {
     productImageUrl: string
     productBackUrl?: string
     productType?: 'tshirt' | 'hoodie' | 'mug' | 'cap' | 'sweatshirt' | 'vest'
     baseColor?: string
+    baseColorName?: string
     productName?: string
     productViews?: ProductView[]
-    onSave: (config: CustomizationConfig) => void
-}
-
-export interface CustomizationConfig {
-    designFileUrl?: string
-    designX: number
-    designY: number
-    designWidth: number
-    designHeight: number
-    designRotation: number
-    position: string
+    /** Modèle GLB pour l'aperçu 3D réaliste (design projeté en Decal). */
+    model3dUrl?: string
+    onSave: (data: CustomizationData) => void | Promise<void>
 }
 
 export interface ProductView {
@@ -158,11 +168,18 @@ export const CustomizationCanvas = ({
     productBackUrl = productImageUrl,
     productType = 'tshirt',
     baseColor = '#ffffff',
+    baseColorName,
     productName,
     productViews,
+    model3dUrl,
     onSave
 }: CustomizationCanvasProps) => {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+    const [designFileName, setDesignFileName] = useState<string | undefined>(undefined)
+    const [isSaving, setIsSaving] = useState(false)
+    const [show3D, setShow3D] = useState(false)
+    const [is3DLoading, setIs3DLoading] = useState(false)
+    const [textures3D, setTextures3D] = useState<{ front: string; back?: string; design?: string; aspect: number }>({ front: '', aspect: 1 })
     const views = useMemo<ProductView[]>(() => {
         if (productViews && productViews.length > 0) {
             return productViews
@@ -207,7 +224,6 @@ export const CustomizationCanvas = ({
     }, [viewIds])
 
     const [isSelected, setIsSelected] = useState(false)
-    const [position, setPosition] = useState('front-center')
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Config actuelle basée sur la vue
@@ -270,6 +286,7 @@ export const CustomizationCanvas = ({
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
+            setDesignFileName(file.name)
             const reader = new FileReader()
             reader.onload = (event) => {
                 setUploadedImage(event.target?.result as string)
@@ -279,17 +296,69 @@ export const CustomizationCanvas = ({
         }
     }
 
-    const handleSave = () => {
-        const config: CustomizationConfig = {
-            designFileUrl: uploadedImage || undefined,
-            designX: currentDesignConfig.x,
-            designY: currentDesignConfig.y,
-            designWidth: currentDesignConfig.width,
-            designHeight: currentDesignConfig.height,
-            designRotation: currentDesignConfig.rotation,
-            position,
+    const handleSave = async () => {
+        if (!uploadedImage || isSaving) return
+        setIsSaving(true)
+        try {
+            // Construit une vue par template, avec le design positionné dessus.
+            const viewDesigns: ViewDesign[] = views.map(buildViewDesign)
+
+            // Génère le rendu HD (produit + couleur + design) pour chaque vue.
+            const renderedViews = await renderAllViews(viewDesigns, {
+                baseColor,
+                pixelRatio: 3,
+            })
+
+            const data: CustomizationData = {
+                baseColor,
+                baseColorName,
+                productType,
+                designFileName,
+                views: renderedViews,
+            }
+
+            await onSave(data)
+        } finally {
+            setIsSaving(false)
         }
-        onSave(config)
+    }
+
+    const buildViewDesign = (view: ProductView): ViewDesign => {
+        const cfg = designConfigs[view.id] || defaultDesignConfig
+        return {
+            viewId: view.id,
+            label: view.label,
+            templateUrl: view.templateUrl,
+            position: `${view.id}-center`,
+            designFileUrl: uploadedImage || undefined,
+            designX: cfg.x,
+            designY: cfg.y,
+            designWidth: cfg.width,
+            designHeight: cfg.height,
+            designRotation: cfg.rotation,
+        }
+    }
+
+    const handleOpen3D = async () => {
+        if (!uploadedImage || is3DLoading) return
+        setIs3DLoading(true)
+        try {
+            const frontView = views.find((v) => v.id === 'front') || views[0]
+            const backView = views.find((v) => v.id === 'back')
+            const front = await renderViewToDataURL(buildViewDesign(frontView), { baseColor, pixelRatio: 2 })
+            const back = backView
+                ? await renderViewToDataURL(buildViewDesign(backView), { baseColor, pixelRatio: 2 })
+                : undefined
+            // Ratio du design (pour le Decal en mode GLB), basé sur la vue avant.
+            const frontCfg = designConfigs[frontView.id] || defaultDesignConfig
+            const aspect = frontCfg.height > 0 ? frontCfg.width / frontCfg.height : 1
+            setTextures3D({ front, back, design: uploadedImage || undefined, aspect })
+            setShow3D(true)
+        } catch (err) {
+            console.error('Aperçu 3D impossible', err)
+        } finally {
+            setIs3DLoading(false)
+        }
     }
 
     const handleRotate = () => {
@@ -373,24 +442,42 @@ export const CustomizationCanvas = ({
                     {/* Toggle Views */}
                     <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
                         {views.map((view) => (
-                            <button
+                            <motion.button
                                 key={view.id}
                                 onClick={() => setCurrentViewId(view.id)}
-                                className={`px-4 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${currentViewId === view.id
-                                    ? 'bg-primary-600 text-white shadow-lg'
+                                whileHover={{ y: -2 }}
+                                whileTap={{ scale: 0.94 }}
+                                className={`relative px-4 py-2 text-sm rounded-lg font-medium transition-colors duration-200 ${currentViewId === view.id
+                                    ? 'text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
-                                {view.label}
-                            </button>
+                                {currentViewId === view.id && (
+                                    <motion.span
+                                        layoutId="activeViewPill"
+                                        className="absolute inset-0 rounded-lg bg-primary-600 shadow-lg"
+                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{view.label}</span>
+                            </motion.button>
                         ))}
                     </div>
 
                     {/* View Indicator */}
-                    <div className="text-center mt-3">
-                        <p className="text-sm text-gray-500">
-                            Vue actuelle : {views.find(view => view.id === currentViewId)?.label || 'Recto'}
-                        </p>
+                    <div className="text-center mt-3 h-5">
+                        <AnimatePresence mode="wait">
+                            <motion.p
+                                key={currentViewId}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-sm text-gray-500"
+                            >
+                                Vue actuelle : {views.find(view => view.id === currentViewId)?.label || 'Recto'}
+                            </motion.p>
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>
@@ -468,14 +555,76 @@ export const CustomizationCanvas = ({
 
 
 
+            {/* Aperçu 3D 360° */}
+            {uploadedImage && (
+                <Button
+                    onClick={handleOpen3D}
+                    disabled={is3DLoading}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                >
+                    {is3DLoading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Préparation de la 3D…
+                        </>
+                    ) : (
+                        <>
+                            <Box className="w-5 h-5 mr-2" />
+                            Aperçu 3D 360°
+                        </>
+                    )}
+                </Button>
+            )}
+
+            {/* Modale viewer 3D */}
+            {show3D && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setShow3D(false)}>
+                    <div
+                        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[70vh] overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-5 py-3 bg-gradient-to-b from-black/40 to-transparent">
+                            <p className="text-white font-semibold drop-shadow">
+                                Aperçu 3D 360° — faites glisser pour tourner
+                            </p>
+                            <button
+                                onClick={() => setShow3D(false)}
+                                className="p-2 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors"
+                                aria-label="Fermer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <Product3DViewer
+                            modelUrl={model3dUrl}
+                            designTextureUrl={textures3D.design}
+                            decalAspect={textures3D.aspect}
+                            frontTextureUrl={textures3D.front}
+                            backTextureUrl={textures3D.back}
+                            productType={productType}
+                            baseColor={baseColor}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Save Button */}
             <Button
                 onClick={handleSave}
-                disabled={!uploadedImage}
+                disabled={!uploadedImage || isSaving}
                 className="w-full"
                 size="lg"
             >
-                Valider et Ajouter au Panier
+                {isSaving ? (
+                    <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Génération du visuel de production…
+                    </>
+                ) : (
+                    'Valider et Ajouter au Panier'
+                )}
             </Button>
         </div>
     )

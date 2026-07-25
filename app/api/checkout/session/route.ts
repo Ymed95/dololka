@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
+import type { CustomizationData, ViewDesign } from '@/lib/types/customization'
 
 const prisma = new PrismaClient()
+
+/** Vue principale = première vue comportant un design, sinon la première. */
+function getPrimaryView(customization?: CustomizationData): ViewDesign | undefined {
+    if (!customization?.views?.length) return undefined
+    return customization.views.find((v) => v.designFileUrl) || customization.views[0]
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -79,6 +86,9 @@ export async function POST(request: NextRequest) {
                 shipping.notes ? `Notes: ${shipping.notes}` : '',
             ].filter(Boolean).join('\n')
 
+            const customization: CustomizationData | undefined = item.customization
+            const primaryView = getPrimaryView(customization)
+
             const productBlock = [
                 `--- Produit ---`,
                 item.size ? `Taille: ${item.size}` : '',
@@ -92,14 +102,21 @@ export async function POST(request: NextRequest) {
                     productId: item.productId,
                     totalPrice: product.price * (item.quantity || 1),
                     status: 'pending_payment',
-                    designFileUrl: item.customization?.designFileUrl || null,
-                    designFileName: item.customization?.designFileName || null,
-                    position: item.customization?.position || null,
-                    designX: item.customization?.designX != null ? parseFloat(item.customization.designX) : null,
-                    designY: item.customization?.designY != null ? parseFloat(item.customization.designY) : null,
-                    designWidth: item.customization?.designWidth != null ? parseFloat(item.customization.designWidth) : null,
-                    designHeight: item.customization?.designHeight != null ? parseFloat(item.customization.designHeight) : null,
-                    designRotation: item.customization?.designRotation != null ? parseFloat(item.customization.designRotation) : null,
+                    // Vue principale (rétro-compatibilité avec l'affichage existant)
+                    designFileUrl: primaryView?.designFileUrl || null,
+                    designFileName: customization?.designFileName || null,
+                    position: primaryView?.position || null,
+                    designX: primaryView?.designX ?? null,
+                    designY: primaryView?.designY ?? null,
+                    designWidth: primaryView?.designWidth ?? null,
+                    designHeight: primaryView?.designHeight ?? null,
+                    designRotation: primaryView?.designRotation ?? null,
+                    // Asset de production
+                    baseColor: customization?.baseColor || null,
+                    productionFileUrl: primaryView?.productionImageUrl || null,
+                    customizationData: customization
+                        ? (JSON.parse(JSON.stringify(customization)) as Prisma.InputJsonValue)
+                        : Prisma.JsonNull,
                     customNotes: `${productBlock}\n\n${shippingBlock}`,
                 },
             })
