@@ -117,9 +117,20 @@ export async function POST(request: NextRequest) {
         if (!url) {
             // Distingue l'absence de configuration d'une vraie panne : le
             // message doit dire quoi faire, pas seulement qu'il y a un échec.
-            const error = hasBlobStorage()
-                ? `Le stockage a refusé le fichier${lastBlobError ? ` : ${lastBlobError}` : '.'}`
-                : "Aucun stockage de fichiers n'est configuré. Connectez un store Vercel Blob au projet, puis redéployez."
+            let error: string
+            if (!hasBlobStorage()) {
+                error = "Aucun stockage de fichiers n'est configuré. Connectez un store Vercel Blob au projet, puis redéployez."
+            } else if (/private (store|access)/i.test(lastBlobError)) {
+                // Cas fréquent : un store créé en mode privé refuse les fichiers
+                // publics, or les visuels de la boutique doivent être affichables
+                // sans authentification. Le mode est figé à la création du store.
+                error =
+                    "Le store Blob connecté est en mode privé : il ne peut pas héberger les visuels de la boutique, " +
+                    "qui doivent être accessibles publiquement. Créez un store Blob en mode public, connectez-le au projet " +
+                    "à la place du store privé, puis redéployez."
+            } else {
+                error = `Le stockage a refusé le fichier${lastBlobError ? ` : ${lastBlobError}` : '.'}`
+            }
             return NextResponse.json({ error }, { status: 500 })
         }
 
