@@ -3,8 +3,50 @@
 import * as React from 'react'
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, useTexture, useGLTF, Center, Html, Decal } from '@react-three/drei'
+import {
+    OrbitControls, useTexture, useGLTF, Center, Html, Decal,
+    ContactShadows, Environment, Lightformer,
+} from '@react-three/drei'
 import * as THREE from 'three'
+
+/** Normal map « tissage » générée en canvas : donne au tissu un grain de
+ *  textile sous l'éclairage studio (au lieu d'un aplat pâte-à-modeler).
+ *  Générée une seule fois puis mise en cache. */
+let fabricNormalTexture: THREE.Texture | null = null
+function getFabricNormalTexture(): THREE.Texture | null {
+    if (typeof document === 'undefined') return null
+    if (fabricNormalTexture) return fabricNormalTexture
+
+    const size = 256
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    const img = ctx.createImageData(size, size)
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const i = (y * size + x) * 4
+            // Trame de tissage : ondulations croisées + bruit fin
+            const weaveX = Math.sin((x / size) * Math.PI * 96) * 14
+            const weaveY = Math.sin((y / size) * Math.PI * 96) * 14
+            const noise = (Math.random() - 0.5) * 12
+            img.data[i] = 128 + weaveX + noise       // normale X
+            img.data[i + 1] = 128 + weaveY + noise   // normale Y
+            img.data[i + 2] = 255                     // normale Z
+            img.data[i + 3] = 255
+        }
+    }
+    ctx.putImageData(img, 0, 0)
+
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.wrapS = THREE.RepeatWrapping
+    tex.wrapT = THREE.RepeatWrapping
+    tex.repeat.set(5, 5)
+    fabricNormalTexture = tex
+    return tex
+}
 
 /** Placement d'un design sur une face, exprimé relativement au template 2D
  *  du configurateur (coordonnées 0..1, v orienté vers le bas). */
@@ -65,7 +107,7 @@ interface ModelAnalysis {
     bodyBox: THREE.Box3
 }
 
-function analyzeModel(source: THREE.Object3D, baseColor: string): ModelAnalysis {
+function analyzeModel(source: THREE.Object3D, baseColor: string, fabric: boolean): ModelAnalysis {
     // Clone profond pour ne pas muter le cache global de useGLTF.
     const scene = source.clone(true) as THREE.Group
     scene.updateMatrixWorld(true)
@@ -82,12 +124,20 @@ function analyzeModel(source: THREE.Object3D, baseColor: string): ModelAnalysis 
         }
     })
 
-    // Teinte du tissu : on clone le matériau pour éviter les effets de bord.
+    // Teinte + grain textile : on clone le matériau pour éviter les effets de bord.
     const tint = new THREE.Color(baseColor)
+    const fabricNormal = fabric ? getFabricNormalTexture() : null
     candidates.forEach((mesh) => {
         const apply = (m: THREE.Material) => {
             const cloned = m.clone() as THREE.MeshStandardMaterial
             if ('color' in cloned && cloned.color) cloned.color.copy(tint)
+            // N'ajoute le grain tissu que si le modèle n'a pas déjà sa propre
+            // normal map (les GLB pro gardent leurs matériaux d'origine).
+            if (fabricNormal && 'normalMap' in cloned && !cloned.normalMap) {
+                cloned.normalMap = fabricNormal
+                cloned.normalScale = new THREE.Vector2(0.35, 0.35)
+                cloned.roughness = Math.max(cloned.roughness ?? 0.85, 0.82)
+            }
             return cloned
         }
         mesh.material = Array.isArray(mesh.material)
@@ -191,6 +241,7 @@ function DecalModel({
     frontDecal,
     backDecal,
     baseColor = '#ffffff',
+    fabric = true,
     editable = false,
     onDecalChange,
     onDraggingChange,
@@ -199,12 +250,13 @@ function DecalModel({
     frontDecal?: DecalPlacement
     backDecal?: DecalPlacement
     baseColor?: string
+    fabric?: boolean
     editable?: boolean
     onDecalChange?: (side: DecalSide, placement: DecalPlacement) => void
     onDraggingChange?: (dragging: boolean) => void
 }) {
     const { scene: source } = useGLTF(modelUrl)
-    const analysis = useMemo(() => analyzeModel(source, baseColor), [source, baseColor])
+    const analysis = useMemo(() => analyzeModel(source, baseColor, fabric ?? true), [source, baseColor, fabric])
     const bodyRef = useRef<THREE.Mesh | null>(null)
     // Assignation synchrone pendant le rendu : le Decal lit cette ref dès son
     // premier montage (un useEffect arriverait trop tard → crash drei).
@@ -370,6 +422,7 @@ export function Product3DViewer({
 }: Product3DViewerProps) {
     // Pendant le drag d'un design, on fige la caméra (sinon tout bouge en même temps).
     const [dragging, setDragging] = React.useState(false)
+    const FLOOR_Y = -2.3
 
     return (
         <Canvas
@@ -378,19 +431,32 @@ export function Product3DViewer({
             dpr={[1, 2]}
             gl={{ preserveDrawingBuffer: true, antialias: true }}
         >
-            <ambientLight intensity={0.8} />
-            <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
-            <directionalLight position={[-5, -3, -5]} intensity={0.5} />
-            <directionalLight position={[0, 2, -6]} intensity={0.4} />
+            {/* Fond studio légèrement dégradé (clair en haut) */}
+            <color attach="background" args={['#f3f4f6']} />
+
+            {/* Éclairage de base doux */}
+            <ambientLight intensity={0.55} />
+            <directionalLight position={[4, 7, 5]} intensity={0.7} castShadow />
+
+            {/* Environnement studio (softboxes) : reflets doux sur le tissu.
+                Généré localement — aucune ressource réseau. */}
+            <Environment resolution={256} frames={1}>
+                <Lightformer form="rect" intensity={2.4} position={[0, 5, 4]} scale={[7, 4, 1]} target={[0, 0, 0]} />
+                <Lightformer form="rect" intensity={1.1} position={[-5, 1.5, 2.5]} rotation-y={0.7} scale={[3, 4, 1]} />
+                <Lightformer form="rect" intensity={1.1} position={[5, 1.5, 2.5]} rotation-y={-0.7} scale={[3, 4, 1]} />
+                <Lightformer form="rect" intensity={0.7} position={[0, 2, -5]} scale={[6, 3, 1]} />
+            </Environment>
 
             <Suspense fallback={<Loader />}>
-                <Center>
+                {/* top : tous les modèles reposent sur le même « sol » */}
+                <Center top position={[0, FLOOR_Y, 0]}>
                     {modelUrl ? (
                         <DecalModel
                             modelUrl={modelUrl}
                             frontDecal={frontDecal}
                             backDecal={backDecal}
                             baseColor={baseColor}
+                            fabric={productType !== 'mug'}
                             editable={editable}
                             onDecalChange={onDecalChange}
                             onDraggingChange={setDragging}
@@ -405,6 +471,17 @@ export function Product3DViewer({
                         />
                     )}
                 </Center>
+
+                {/* Ombre portée douce au sol : ancre le produit dans l'espace */}
+                <ContactShadows
+                    position={[0, FLOOR_Y + 0.01, 0]}
+                    opacity={0.38}
+                    scale={10}
+                    blur={2.4}
+                    far={4.5}
+                    resolution={512}
+                    frames={dragging ? Infinity : 60}
+                />
             </Suspense>
 
             <OrbitControls
@@ -414,6 +491,7 @@ export function Product3DViewer({
                 autoRotateSpeed={1.4}
                 minDistance={4}
                 maxDistance={12}
+                target={[0, -0.4, 0]}
             />
         </Canvas>
     )
