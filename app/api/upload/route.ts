@@ -20,22 +20,38 @@ const ALLOWED_TYPES: Record<string, string> = {
     'image/svg+xml': 'svg',
 }
 
+/** Un stockage Blob est disponible si l'on a soit un token de lecture/écriture
+ *  (utilisable partout, y compris en local), soit un store connecté via OIDC
+ *  (BLOB_STORE_ID, méthode recommandée par Vercel : aucun token à gérer). */
+function hasBlobStorage(): boolean {
+    return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID)
+}
+
+/** Dernière erreur du stockage, remontée à l'interface pour diagnostic. */
+let lastBlobError = ''
+
 async function storeOnVercelBlob(
     fileName: string,
     buffer: Buffer,
     mimeType: string
 ): Promise<string | null> {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) return null
+    if (!hasBlobStorage()) return null
     try {
-        // Import dynamique : le paquet n'est sollicité que si le token existe.
+        // Import dynamique : le paquet n'est sollicité que si un store existe.
         const { put } = await import('@vercel/blob')
         const blob = await put(`uploads/${fileName}`, buffer, {
             access: 'public',
             contentType: mimeType,
-            token: process.env.BLOB_READ_WRITE_TOKEN,
+            // Sans token explicite, le SDK utilise VERCEL_OIDC_TOKEN +
+            // BLOB_STORE_ID, tous deux fournis automatiquement par Vercel.
+            ...(process.env.BLOB_READ_WRITE_TOKEN
+                ? { token: process.env.BLOB_READ_WRITE_TOKEN }
+                : {}),
         })
+        lastBlobError = ''
         return blob.url
     } catch (err) {
+        lastBlobError = err instanceof Error ? err.message : String(err)
         console.error('Vercel Blob upload échoué, fallback FS', err)
         return null
     }
@@ -101,9 +117,9 @@ export async function POST(request: NextRequest) {
         if (!url) {
             // Distingue l'absence de configuration d'une vraie panne : le
             // message doit dire quoi faire, pas seulement qu'il y a un échec.
-            const error = process.env.BLOB_READ_WRITE_TOKEN
-                ? "Le stockage a refusé le fichier. Vérifiez que le store Blob est bien connecté au projet."
-                : "Aucun stockage de fichiers n'est configuré. Créez un store Vercel Blob et connectez-le au projet (variable BLOB_READ_WRITE_TOKEN), puis redéployez."
+            const error = hasBlobStorage()
+                ? `Le stockage a refusé le fichier${lastBlobError ? ` : ${lastBlobError}` : '.'}`
+                : "Aucun stockage de fichiers n'est configuré. Connectez un store Vercel Blob au projet, puis redéployez."
             return NextResponse.json({ error }, { status: 500 })
         }
 
