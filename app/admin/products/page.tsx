@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { ImageUploadField } from '@/components/admin/ImageUploadField'
 import { Plus, Edit, Trash2, X, Save, Package, Shirt, PenTool } from 'lucide-react'
 
 const productTypes = [
@@ -249,7 +250,7 @@ export default function AdminProducts() {
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
                                         <Input type="number" step="0.01" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
@@ -258,17 +259,28 @@ export default function AdminProducts() {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Tailles disponibles</label>
                                         <Input value={formData.sizes} onChange={(e) => setFormData({ ...formData, sizes: e.target.value })} placeholder="XS,S,M,L,XL,2XL" />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">URL image</label>
-                                        <Input value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="/products/..." />
-                                    </div>
                                 </div>
-                                {activeType === 'customizable' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">URL mockup (verso, optionnel)</label>
-                                        <Input value={formData.mockupUrl} onChange={(e) => setFormData({ ...formData, mockupUrl: e.target.value })} placeholder="/products/product-back.png" />
-                                    </div>
-                                )}
+
+                                {/* Visuels : envoi de fichier, ou URL au choix */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                                    <ImageUploadField
+                                        label="Image du produit (recto)"
+                                        value={formData.imageUrl}
+                                        onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                                        prefix="produit"
+                                    />
+                                    {/* Le textile vierge est personnalisable : il a lui aussi
+                                        besoin d'un visuel verso pour le configurateur. */}
+                                    {(activeType === 'customizable' || activeType === 'textile') && (
+                                        <ImageUploadField
+                                            label="Image verso (optionnel)"
+                                            value={formData.mockupUrl}
+                                            onChange={(url) => setFormData({ ...formData, mockupUrl: url })}
+                                            prefix="produit-verso"
+                                            hint="Sans verso, le configurateur réutilise l'image recto."
+                                        />
+                                    )}
+                                </div>
                                 <div className="flex gap-3">
                                     <Button type="submit">
                                         <Save className="w-4 h-4 mr-2" />
