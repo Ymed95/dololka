@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { toProductColors } from '@/lib/productColors'
 
 const prisma = new PrismaClient()
 
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { name, description, price, category, type, imageUrl, mockupUrl, sizes } = body
+        const { name, description, price, category, type, imageUrl, mockupUrl, sizes, colors, model3dUrl } = body
 
         if (!name || !description || !price || !category) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -84,7 +85,10 @@ export async function POST(request: NextRequest) {
                 type: type || 'customizable',
                 imageUrl: imageUrl || '/products/placeholder.jpg',
                 mockupUrl: mockupUrl || null,
+                model3dUrl: model3dUrl || null,
                 sizes: sizes || null,
+                // Coloris réellement disponibles ; vide = palette par défaut.
+                colors: toProductColors(colors) as unknown as Prisma.InputJsonValue,
             },
         })
 

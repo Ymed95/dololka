@@ -35,6 +35,8 @@ model Product {
   mockupUrl   String?  // URL for 3D/2D mockup
   model3dUrl  String?  // URL d'un modèle GLB pour l'aperçu 3D 360°
   sizes       String?  // Available sizes e.g. "XS,S,M,L,XL,2XL"
+  colors      Json?    // Coloris réellement disponibles : { name, value }[]
+                       // Vide ou absent = palette par défaut du site
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

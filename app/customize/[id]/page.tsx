@@ -11,6 +11,7 @@ import { ArrowLeft, ShoppingCart, Check } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cartStore'
 import { uploadDataUrl } from '@/lib/production/uploadAsset'
 import type { CustomizationData } from '@/lib/types/customization'
+import { colorsForProduct, isLightColor, type ProductColor } from '@/lib/productColors'
 
 // react-konva ne fonctionne qu'au navigateur : chargement côté client uniquement.
 const CustomizationCanvas = dynamic(
@@ -36,6 +37,8 @@ interface Product {
     imageUrl: string
     mockupUrl?: string | null
     model3dUrl?: string | null
+    /** Coloris disponibles ; vide = palette par défaut du site. */
+    colors?: unknown
 }
 
 // Modèles GLB de scaffold fournis par défaut selon la catégorie produit.
@@ -48,24 +51,6 @@ const DEFAULT_MODELS: Record<string, string> = {
 }
 
 const productSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-const productColors = [
-    { name: 'Blanc', value: '#ffffff' },
-    { name: 'Noir', value: '#1a1a1a' },
-    { name: 'Gris', value: '#9ca3af' },
-    { name: 'Gris Foncé', value: '#4b5563' },
-    { name: 'Bleu Marine', value: '#1e3a8a' },
-    { name: 'Bleu Ciel', value: '#3b82f6' },
-    { name: 'Rouge', value: '#dc2626' },
-    { name: 'Bordeaux', value: '#7f1d1d' },
-    { name: 'Vert', value: '#16a34a' },
-    { name: 'Vert Foncé', value: '#14532d' },
-    { name: 'Jaune', value: '#eab308' },
-    { name: 'Orange', value: '#ea580c' },
-    { name: 'Rose', value: '#ec4899' },
-    { name: 'Violet', value: '#7c3aed' },
-    { name: 'Beige', value: '#d4a574' },
-    { name: 'Marron', value: '#78350f' },
-]
 
 export default function CustomizePage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -73,10 +58,23 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
     const [product, setProduct] = useState<Product | null>(null)
     const [loading, setLoading] = useState(true)
     const [selectedSize, setSelectedSize] = useState<string>('M')
-    const [selectedColor, setSelectedColor] = useState(productColors[0])
+    const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null)
     const [quantity, setQuantity] = useState(1)
     // Autres supports de la même catégorie (nos modèles + textile fournisseurs)
     const [siblings, setSiblings] = useState<Product[]>([])
+
+    // Coloris réellement proposés pour ce produit (sinon palette par défaut).
+    const availableColors = colorsForProduct(product?.colors)
+
+    // Sélectionne un coloris valide : au chargement, et si l'on change de
+    // support dont la palette ne contient pas la couleur en cours.
+    useEffect(() => {
+        if (availableColors.length === 0) return
+        const stillAvailable =
+            selectedColor && availableColors.some((c) => c.value === selectedColor.value)
+        if (!stillAvailable) setSelectedColor(availableColors[0])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [product?.id, product?.colors])
 
     // Fetch product from database
     useEffect(() => {
@@ -121,7 +119,7 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
     }
 
     const handleSaveCustomization = async (data: CustomizationData) => {
-        if (!product) return
+        if (!product || !selectedColor) return
 
         // Upload des assets (design + rendus de production) pour alléger le
         // panier et la DB. Le design est partagé entre les vues : on l'upload
@@ -383,34 +381,40 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                                 </p>
                             </div>
 
-                            {/* Color Selector */}
-                            <div className="mb-6">
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    Couleur : <span className="text-primary-600">{selectedColor.name}</span>
-                                </label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {productColors.map((color) => (
-                                        <button
-                                            key={color.name}
-                                            onClick={() => setSelectedColor(color)}
-                                            className={`w-10 h-10 rounded-full border-2 transition-all duration-200 relative ${selectedColor.name === color.name
-                                                ? 'border-primary-500 scale-110 shadow-lg ring-2 ring-primary-300 ring-offset-2'
-                                                : 'border-gray-300 hover:scale-105'
-                                                }`}
-                                            style={{ backgroundColor: color.value }}
-                                            title={color.name}
-                                        >
-                                            {selectedColor.name === color.name && (
-                                                <span className="absolute inset-0 flex items-center justify-center">
-                                                    <svg className={`w-5 h-5 drop-shadow-lg ${['#ffffff', '#eab308', '#d4a574', '#9ca3af'].includes(color.value) ? 'text-gray-800' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
+                            {/* Coloris disponibles pour ce produit */}
+                            {selectedColor && (
+                                <div className="mb-6">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                        Couleur : <span className="text-primary-600">{selectedColor.name}</span>
+                                    </label>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {availableColors.map((color) => {
+                                            const active = selectedColor.value === color.value
+                                            return (
+                                                <button
+                                                    key={color.value}
+                                                    onClick={() => setSelectedColor(color)}
+                                                    className={`w-10 h-10 rounded-full border-2 transition-all duration-200 relative ${active
+                                                        ? 'border-primary-500 scale-110 shadow-lg ring-2 ring-primary-300 ring-offset-2'
+                                                        : 'border-gray-300 hover:scale-105'
+                                                        }`}
+                                                    style={{ backgroundColor: color.value }}
+                                                    title={color.name}
+                                                >
+                                                    {active && (
+                                                        <span className="absolute inset-0 flex items-center justify-center">
+                                                            {/* Coche foncée sur les teintes claires, pour rester lisible */}
+                                                            <svg className={`w-5 h-5 drop-shadow-lg ${isLightColor(color.value) ? 'text-gray-800' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="space-y-3 text-sm border-t pt-4">
                                 <div className="flex items-start gap-2">
@@ -435,8 +439,8 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                             productImageUrl={product.imageUrl}
                             productBackUrl={product.mockupUrl || product.imageUrl}
                             productType={product.category as any}
-                            baseColor={selectedColor.value}
-                            baseColorName={selectedColor.name}
+                            baseColor={(selectedColor ?? availableColors[0]).value}
+                            baseColorName={(selectedColor ?? availableColors[0]).name}
                             model3dUrl={product.model3dUrl || DEFAULT_MODELS[product.category]}
                             productName={product.name}
                             productViews={

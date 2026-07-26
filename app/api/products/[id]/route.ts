@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { toProductColors } from '@/lib/productColors'
 
 const prisma = new PrismaClient()
 
@@ -37,7 +38,7 @@ export async function PUT(
         }
 
         const body = await request.json()
-        const { name, description, price, category, type, imageUrl, mockupUrl, sizes } = body
+        const { name, description, price, category, type, imageUrl, mockupUrl, sizes, colors, model3dUrl } = body
 
         const product = await prisma.product.update({
             where: { id: params.id },
@@ -49,7 +50,10 @@ export async function PUT(
                 type: type || 'customizable',
                 imageUrl,
                 mockupUrl,
+                ...(model3dUrl !== undefined && { model3dUrl: model3dUrl || null }),
                 sizes: sizes || null,
+                // Coloris réellement disponibles ; vide = palette par défaut.
+                ...(colors !== undefined && { colors: toProductColors(colors) as unknown as Prisma.InputJsonValue }),
             },
         })
 

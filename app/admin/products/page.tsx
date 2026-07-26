@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ImageUploadField } from '@/components/admin/ImageUploadField'
+import { ColorPaletteField } from '@/components/admin/ColorPaletteField'
+import { toProductColors, type ProductColor } from '@/lib/productColors'
 import { Plus, Edit, Trash2, X, Save, Package, Shirt, PenTool } from 'lucide-react'
 
 const productTypes = [
@@ -57,6 +59,8 @@ export default function AdminProducts() {
     const [activeType, setActiveType] = useState('customizable')
     const [showForm, setShowForm] = useState(false)
     const [editingProduct, setEditingProduct] = useState<any | null>(null)
+    // Coloris disponibles du produit (liste, donc gérée à part du formulaire).
+    const [colors, setColors] = useState<ProductColor[]>([])
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -103,6 +107,7 @@ export default function AdminProducts() {
             category: categoryOptions[activeType]?.[0]?.value || 'tshirt',
             type: activeType, imageUrl: '', mockupUrl: '', sizes: '',
         })
+        setColors([])
         setEditingProduct(null)
         setShowForm(false)
     }
@@ -119,6 +124,7 @@ export default function AdminProducts() {
             mockupUrl: product.mockupUrl || '',
             sizes: product.sizes || '',
         })
+        setColors(toProductColors(product.colors))
         setShowForm(true)
     }
 
@@ -127,6 +133,7 @@ export default function AdminProducts() {
         try {
             const payload = {
                 ...formData,
+                colors,
                 price: parseFloat(formData.price),
                 type: activeType,
                 mockupUrl: formData.mockupUrl || null,
@@ -281,6 +288,15 @@ export default function AdminProducts() {
                                         />
                                     )}
                                 </div>
+
+                                {/* Coloris disponibles : seuls les produits portés
+                                    par le client ont un choix de couleur. */}
+                                {(activeType === 'customizable' || activeType === 'textile') && (
+                                    <div className="pt-4 border-t">
+                                        <ColorPaletteField value={colors} onChange={setColors} />
+                                    </div>
+                                )}
+
                                 <div className="flex gap-3">
                                     <Button type="submit">
                                         <Save className="w-4 h-4 mr-2" />
