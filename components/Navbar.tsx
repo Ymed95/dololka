@@ -58,17 +58,16 @@ export const Navbar = () => {
         <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
+                    {/* Logo (le nom de la marque fait déjà partie du visuel) */}
+                    <Link href="/" className="flex items-center flex-shrink-0" aria-label="Dololka Agency — accueil">
                         <Image
-                            src="/logo-transparent.png"
+                            src="/logo-mark.png"
                             alt="Dololka Agency"
-                            width={44}
-                            height={44}
-                            className="object-contain"
+                            width={1019}
+                            height={649}
+                            className="h-11 w-auto object-contain"
                             priority
                         />
-                        <span className="text-lg font-heading font-bold text-gray-900 hidden sm:block">Dololka Agency</span>
                     </Link>
 
                     {/* Desktop Navigation */}

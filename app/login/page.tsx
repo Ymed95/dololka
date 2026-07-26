@@ -67,7 +67,7 @@ export default function LoginPage() {
                 <CardContent className="p-8">
                     <div className="text-center mb-8">
                         <div className="flex justify-center mb-4">
-                            <Image src="/logo-transparent.png" alt="Dololka Agency" width={80} height={80} />
+                            <Image src="/logo-mark.png" alt="Dololka Agency" width={1019} height={649} className="h-16 w-auto object-contain" />
                         </div>
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">Connexion</h1>
                         <p className="text-gray-600">Connectez-vous à votre compte Dololka</p>
