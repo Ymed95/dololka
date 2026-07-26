@@ -205,6 +205,10 @@ export const CustomizationCanvas = ({
     }, [productViews, productImageUrl, productBackUrl])
 
     const [currentViewId, setCurrentViewId] = useState<string>(views[0]?.id || 'front')
+    // Faces sur lesquelles le client veut réellement imprimer son design.
+    // Par défaut : uniquement la première (avant). Sans ce filtre, l'admin
+    // recevrait un fichier de production pour chaque face du produit.
+    const [printedViews, setPrintedViews] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
         if (!views.find(view => view.id === currentViewId)) {
@@ -235,7 +239,21 @@ export const CustomizationCanvas = ({
             })
             return next
         })
+        // Seule la première face est imprimée par défaut.
+        setPrintedViews(prev => {
+            const known = views.some(v => v.id in prev)
+            if (known) return prev
+            const first = views[0]?.id
+            return first ? { [first]: true } : {}
+        })
     }, [viewIds])
+
+    const isViewPrinted = (viewId: string) => !!printedViews[viewId]
+    const printedCount = views.filter(v => isViewPrinted(v.id)).length
+
+    const toggleCurrentViewPrinted = () => {
+        setPrintedViews(prev => ({ ...prev, [currentViewId]: !prev[currentViewId] }))
+    }
 
     const [isSelected, setIsSelected] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -314,8 +332,11 @@ export const CustomizationCanvas = ({
         if (!uploadedImage || isSaving) return
         setIsSaving(true)
         try {
-            // Construit une vue par template, avec le design positionné dessus.
-            const viewDesigns: ViewDesign[] = views.map(buildViewDesign)
+            // Seules les faces réellement imprimées partent en production :
+            // l'admin ne reçoit ainsi que les fichiers à imprimer.
+            const viewDesigns: ViewDesign[] = views
+                .filter(view => isViewPrinted(view.id))
+                .map(buildViewDesign)
 
             // Génère le rendu HD (produit + couleur + design) pour chaque vue.
             const renderedViews = await renderAllViews(viewDesigns, {
@@ -344,7 +365,8 @@ export const CustomizationCanvas = ({
             label: view.label,
             templateUrl: view.templateUrl,
             position: `${view.id}-center`,
-            designFileUrl: uploadedImage || undefined,
+            // Le design n'est rattaché qu'aux faces choisies pour l'impression.
+            designFileUrl: isViewPrinted(view.id) ? (uploadedImage || undefined) : undefined,
             designX: cfg.x,
             designY: cfg.y,
             designWidth: cfg.width,
@@ -393,9 +415,12 @@ export const CustomizationCanvas = ({
             const back = backView
                 ? await renderViewToDataURL(buildViewDesign(backView), { baseColor, pixelRatio: 2 })
                 : undefined
-            // Placements fidèles du design pour le mode GLB (avant + arrière)
-            const frontDecal = await placementForView(frontView)
-            const backDecal = backView ? await placementForView(backView) : undefined
+            // Placements fidèles du design pour le mode GLB (avant + arrière).
+            // Une face non imprimée n'affiche aucun decal.
+            const frontDecal = isViewPrinted(frontView.id) ? await placementForView(frontView) : undefined
+            const backDecal = backView && isViewPrinted(backView.id)
+                ? await placementForView(backView)
+                : undefined
             // Dimensions des templates pour la synchro 3D → 2D
             const frontDims = await loadImageDims(frontView.templateUrl)
             const backDims = backView ? await loadImageDims(backView.templateUrl) : undefined
@@ -499,7 +524,7 @@ export const CustomizationCanvas = ({
 
                             {/* Layer 2: User design (separate layer so tint doesn't affect it) */}
                             <Layer>
-                                {uploadedImage && (
+                                {uploadedImage && isViewPrinted(currentViewId) && (
                                     <DesignImage
                                         src={uploadedImage}
                                         x={currentDesignConfig.x}
@@ -552,10 +577,45 @@ export const CustomizationCanvas = ({
                                         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10">{view.label}</span>
+                                <span className="relative z-10 flex items-center gap-1.5">
+                                    {view.label}
+                                    {/* Pastille verte = face imprimée */}
+                                    {isViewPrinted(view.id) && (
+                                        <span
+                                            className={`w-2 h-2 rounded-full ${currentViewId === view.id ? 'bg-white' : 'bg-green-500'}`}
+                                            title="Design imprimé sur cette face"
+                                        />
+                                    )}
+                                </span>
                             </motion.button>
                         ))}
                     </div>
+
+                    {/* Choix des faces à imprimer */}
+                    {uploadedImage && views.length > 1 && (
+                        <div className="mt-4 w-full max-w-md">
+                            <button
+                                type="button"
+                                onClick={toggleCurrentViewPrinted}
+                                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${
+                                    isViewPrinted(currentViewId)
+                                        ? 'border-green-500 bg-green-50 text-green-700 hover:bg-green-100'
+                                        : 'border-dashed border-gray-300 text-gray-600 hover:border-primary-400 hover:text-primary-600'
+                                }`}
+                            >
+                                {isViewPrinted(currentViewId) ? (
+                                    <>✓ Design imprimé sur « {views.find(v => v.id === currentViewId)?.label} » — cliquez pour retirer</>
+                                ) : (
+                                    <>+ Imprimer aussi sur « {views.find(v => v.id === currentViewId)?.label} »</>
+                                )}
+                            </button>
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                                {printedCount === 0
+                                    ? '⚠️ Aucune face sélectionnée — choisissez au moins une face à imprimer'
+                                    : `${printedCount} face${printedCount > 1 ? 's' : ''} à imprimer — seules celles-ci partent en production`}
+                            </p>
+                        </div>
+                    )}
 
                     {/* View Indicator */}
                     <div className="text-center mt-3 h-5">
@@ -754,7 +814,7 @@ export const CustomizationCanvas = ({
             {/* Save Button */}
             <Button
                 onClick={handleSave}
-                disabled={!uploadedImage || isSaving}
+                disabled={!uploadedImage || isSaving || printedCount === 0}
                 className="w-full"
                 size="lg"
             >

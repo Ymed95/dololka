@@ -354,9 +354,13 @@ export default function AdminOrders() {
                                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5 mb-6">
                                     <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
                                         <FileImage className="w-4 h-4" /> Fichiers de production
+                                        <span className="ml-1 px-2 py-0.5 bg-green-600 text-white text-xs rounded-full">
+                                            {selectedOrder.customizationData.views.filter((v: any) => v.productionImageUrl).length} face(s) à imprimer
+                                        </span>
                                     </h3>
                                     <p className="text-xs text-gray-600 mb-4">
                                         Rendus haute résolution (produit + couleur + design) prêts pour l'impression.
+                                        <strong> Seules les faces listées ici sont à imprimer.</strong>
                                     </p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {selectedOrder.customizationData.views
@@ -372,17 +376,42 @@ export default function AdminOrders() {
                                                             className="max-w-full max-h-48 object-contain"
                                                         />
                                                     </div>
-                                                    <Button
-                                                        size="sm"
-                                                        className="w-full"
-                                                        onClick={() => downloadUrl(
-                                                            v.productionImageUrl,
-                                                            `production-${selectedOrder.id.slice(0, 8)}-${v.viewId}.png`
+                                                    {/* Position exacte du design sur cette face */}
+                                                    {v.designWidth != null && (
+                                                        <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                                                            Position X {Math.round(v.designX)} · Y {Math.round(v.designY)} —
+                                                            Taille {Math.round(v.designWidth)}×{Math.round(v.designHeight)} px
+                                                            {v.designRotation ? ` — Rotation ${Math.round(v.designRotation)}°` : ''}
+                                                        </p>
+                                                    )}
+                                                    <div className="space-y-2">
+                                                        <Button
+                                                            size="sm"
+                                                            className="w-full"
+                                                            onClick={() => downloadUrl(
+                                                                v.productionImageUrl,
+                                                                `production-${selectedOrder.id.slice(0, 8)}-${v.viewId}.png`
+                                                            )}
+                                                        >
+                                                            <Download className="w-4 h-4 mr-2" />
+                                                            Aperçu ({v.label})
+                                                        </Button>
+                                                        {v.designFileUrl && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="w-full"
+                                                                onClick={() => downloadUrl(
+                                                                    v.designFileUrl,
+                                                                    selectedOrder.designFileName
+                                                                        || `design-${selectedOrder.id.slice(0, 8)}-${v.viewId}`
+                                                                )}
+                                                            >
+                                                                <Download className="w-4 h-4 mr-2" />
+                                                                Design seul (à imprimer)
+                                                            </Button>
                                                         )}
-                                                    >
-                                                        <Download className="w-4 h-4 mr-2" />
-                                                        Télécharger ({v.label})
-                                                    </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                     </div>
