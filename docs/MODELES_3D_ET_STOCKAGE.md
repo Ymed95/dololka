@@ -82,20 +82,86 @@ La route `app/api/upload/route.ts` choisit automatiquement le stockage, dans cet
 2. **FS local** (`public/uploads/`) sinon → pratique en dev / serveur Node persistant.
 3. **Fallback dataURL** côté client si tout échoue → ne bloque jamais la commande.
 
-### Mise en place sur Vercel
+### Mise en place sur Vercel — guide pas à pas
 
-1. Dashboard Vercel → **Storage** → **Create Database** → **Blob**.
-2. Connecte le store au projet : Vercel injecte alors `BLOB_READ_WRITE_TOKEN`
-   dans les variables d'environnement automatiquement.
-3. (En local) copie ce token dans `.env.local` :
-   ```
-   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_XXXX
-   ```
-4. Redéploie. Les nouveaux uploads partent sur le Blob ; aucune migration des
-   anciens fichiers n'est nécessaire (les URLs déjà stockées restent valides).
+#### 1. Créer le store Blob
 
-Le paquet `@vercel/blob` n'est importé que si le token existe (import dynamique),
-donc aucun impact en dev sans token.
+1. Ouvre **vercel.com** et connecte-toi.
+2. Va dans l'onglet **Storage** (en haut du dashboard, à côté de *Projects*).
+   > Selon la version de l'interface, le bouton s'appelle **Create Database**,
+   > **Create Store** ou **Connect Store** — c'est le même écran.
+3. Choisis **Blob**.
+4. Donne-lui un nom (ex. `dololka-assets`) puis **Create**.
+
+#### 2. Connecter le store au projet
+
+1. Une fois le store créé, ouvre-le → onglet **Projects** (ou **Connect Project**).
+2. Sélectionne le projet **dololka** → **Connect**.
+3. Laisse les trois environnements cochés (Production, Preview, Development).
+
+Vercel ajoute alors **automatiquement** la variable `BLOB_READ_WRITE_TOKEN`
+au projet. Tu peux le vérifier dans
+*Projet → Settings → Environment Variables* : elle doit apparaître dans la liste.
+
+#### 3. ⚠️ Redéployer (étape indispensable)
+
+Une variable d'environnement **ne s'applique pas aux déploiements déjà en ligne**.
+Sans redéploiement, rien ne change.
+
+- *Projet → Deployments* → dernier déploiement → menu `···` → **Redeploy**
+- ou pousse n'importe quel commit sur `main`.
+
+#### 4. Vérifier que ça marche
+
+1. Sur le site, personnalise un produit et **ajoute-le au panier**.
+2. Ouvre les **outils de développement** du navigateur (`F12`)
+   → onglet **Application** → **Local Storage** → ton domaine → clé `cart-storage`.
+3. Cherche `designFileUrl` :
+
+| Valeur observée | Signification |
+|---|---|
+| `https://….public.blob.vercel-storage.com/uploads/design-….png` | ✅ Blob actif, tout est bon |
+| `/uploads/design-….png` | ⚠️ écriture disque locale — ne persistera pas sur Vercel |
+| `data:image/png;base64,…` | ❌ aucun stockage : le token manque ou l'upload échoue |
+
+Autre contrôle : dans le store Blob sur Vercel, l'onglet **Browser** doit
+lister les fichiers déposés sous `uploads/`.
+
+#### 5. En local (optionnel)
+
+Pour tester le Blob depuis ta machine, copie le token dans `.env.local` :
+
+```
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_XXXXXXXX
+```
+
+Tu le trouves dans *Settings → Environment Variables* (bouton « afficher »),
+ou via la CLI : `vercel env pull .env.local`.
+
+Sans ce token en local, l'app écrit simplement dans `public/uploads/` :
+c'est le comportement voulu en développement.
+
+### Bon à savoir
+
+- Le paquet `@vercel/blob` n'est importé **que si** le token existe (import
+  dynamique) : aucun impact quand il est absent.
+- Les fichiers sont publics (`access: 'public'`) — nécessaire pour que le
+  navigateur et l'atelier puissent les afficher/télécharger. Les noms
+  contiennent un UUID aléatoire, donc non devinables.
+- Aucune migration des anciennes commandes n'est nécessaire : les URLs déjà
+  enregistrées en base restent valides.
+- Le plan Hobby inclut un quota gratuit de stockage et de bande passante
+  (vérifie les limites en vigueur sur la page tarifs de Vercel). Les fichiers
+  ici sont légers : le design du client et un aperçu plafonné à 1600 px.
+
+### Si ça ne marche pas
+
+| Symptôme | Cause probable | Correctif |
+|---|---|---|
+| `designFileUrl` reste en `data:` | Token absent ou pas de redéploiement | Refaire l'étape 3 |
+| Erreur 500 sur `/api/upload` | Token invalide/expiré | Reconnecter le store au projet |
+| « Fichier trop volumineux » | Design > 15 Mo | Demander une image plus légère au client |
+| Le token existe mais rien ne s'envoie | Variable ajoutée au mauvais environnement | Vérifier qu'elle est cochée pour *Production* |
 
 ---
 
