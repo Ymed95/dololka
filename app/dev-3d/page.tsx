@@ -42,10 +42,32 @@ const COLORS = ['#ffffff', '#1e3a8a', '#dc2626', '#1a1a1a']
 
 export default function Dev3DPage() {
     const [color, setColor] = useState('#1e3a8a')
+    // Carte éditable : le placement bouge quand on glisse sur le modèle.
+    const [editPlacement, setEditPlacement] = useState<DecalPlacement>(centered)
 
     return (
         <div className="min-h-screen bg-gray-100 p-6">
             <h1 className="text-2xl font-bold mb-4">Vérification du viewer 3D — placements</h1>
+
+            <div className="bg-white rounded-xl shadow p-2 mb-6 max-w-xl">
+                <p className="font-bold mb-2 px-2 text-sm">
+                    ÉDITABLE — glisser le design sur le t-shirt
+                    <span id="edit-uv" className="ml-2 text-gray-400 font-mono text-xs">
+                        u={editPlacement.u.toFixed(2)} v={editPlacement.v.toFixed(2)}
+                    </span>
+                </p>
+                <div className="h-[360px] bg-gray-50 rounded-lg overflow-hidden" id="editable-card">
+                    <Product3DViewer
+                        modelUrl="/models/tshirt.glb"
+                        frontDecal={editPlacement}
+                        editable
+                        onDecalChange={(_side, p) => setEditPlacement(p)}
+                        productType="tshirt"
+                        baseColor={color}
+                        autoRotate={false}
+                    />
+                </div>
+            </div>
 
             <div className="flex gap-2 mb-6">
                 {COLORS.map((c) => (

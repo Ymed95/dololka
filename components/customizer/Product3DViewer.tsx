@@ -20,6 +20,9 @@ export interface DecalPlacement {
     rotationDeg: number
 }
 
+/** Côté du produit portant un design. */
+export type DecalSide = 'front' | 'back'
+
 interface Product3DViewerProps {
     /** Modèle GLB. Si fourni, mode réaliste (mesh + designs en Decal). */
     modelUrl?: string
@@ -27,6 +30,11 @@ interface Product3DViewerProps {
     frontDecal?: DecalPlacement
     /** Design positionné sur la face arrière. */
     backDecal?: DecalPlacement
+
+    /** Mode édition : glisser le design directement sur le modèle. */
+    editable?: boolean
+    /** Appelé pendant le drag avec le placement mis à jour. */
+    onDecalChange?: (side: DecalSide, placement: DecalPlacement) => void
 
     /** Rendu composite avant (mode procédural, sans GLB). */
     frontTextureUrl?: string
@@ -176,17 +184,24 @@ function DesignDecal({
     )
 }
 
-/** Mode réaliste : modèle GLB + designs projetés en Decal (avant/arrière). */
+/** Mode réaliste : modèle GLB + designs projetés en Decal (avant/arrière).
+ *  En mode éditable, glisser sur le produit déplace le design du côté touché. */
 function DecalModel({
     modelUrl,
     frontDecal,
     backDecal,
     baseColor = '#ffffff',
+    editable = false,
+    onDecalChange,
+    onDraggingChange,
 }: {
     modelUrl: string
     frontDecal?: DecalPlacement
     backDecal?: DecalPlacement
     baseColor?: string
+    editable?: boolean
+    onDecalChange?: (side: DecalSide, placement: DecalPlacement) => void
+    onDraggingChange?: (dragging: boolean) => void
 }) {
     const { scene: source } = useGLTF(modelUrl)
     const analysis = useMemo(() => analyzeModel(source, baseColor), [source, baseColor])
@@ -194,6 +209,57 @@ function DecalModel({
     // Assignation synchrone pendant le rendu : le Decal lit cette ref dès son
     // premier montage (un useEffect arriverait trop tard → crash drei).
     bodyRef.current = analysis.bodyMesh
+
+    const draggingRef = useRef(false)
+    // Placements courants accessibles depuis les handlers sans re-bind.
+    const placementsRef = useRef<{ front?: DecalPlacement; back?: DecalPlacement }>({})
+    placementsRef.current = { front: frontDecal, back: backDecal }
+
+    // Fin de drag globale (même si le pointeur quitte le mesh).
+    useEffect(() => {
+        const end = () => {
+            if (draggingRef.current) {
+                draggingRef.current = false
+                onDraggingChange?.(false)
+            }
+        }
+        window.addEventListener('pointerup', end)
+        return () => window.removeEventListener('pointerup', end)
+    }, [onDraggingChange])
+
+    /** Convertit un point d'impact 3D en (side, u, v). */
+    const pointToPlacement = (worldPoint: THREE.Vector3): { side: DecalSide; u: number; v: number } | null => {
+        const bm = bodyRef.current
+        if (!bm) return null
+        const local = bm.worldToLocal(worldPoint.clone())
+        const box = analysis.bodyBox
+        const w3 = box.max.x - box.min.x
+        const h3 = box.max.y - box.min.y
+        const midZ = (box.min.z + box.max.z) / 2
+        const side: DecalSide = local.z >= midZ ? 'front' : 'back'
+        const u = side === 'front'
+            ? (local.x - box.min.x) / w3
+            : (box.max.x - local.x) / w3
+        const v = (box.max.y - local.y) / h3
+        return { side, u: Math.min(1, Math.max(0, u)), v: Math.min(1, Math.max(0, v)) }
+    }
+
+    const handlePointerDown = (e: any) => {
+        if (!editable) return
+        e.stopPropagation()
+        draggingRef.current = true
+        onDraggingChange?.(true)
+    }
+
+    const handlePointerMove = (e: any) => {
+        if (!editable || !draggingRef.current || !e.point) return
+        e.stopPropagation()
+        const hit = pointToPlacement(e.point as THREE.Vector3)
+        if (!hit) return
+        const current = placementsRef.current[hit.side]
+        if (!current) return // pas de design sur cette face
+        onDecalChange?.(hit.side, { ...current, u: hit.u, v: hit.v })
+    }
 
     const frontTransform = useMemo(
         () => (frontDecal ? computeDecalTransform(analysis.bodyBox, frontDecal, 'front') : null),
@@ -205,7 +271,10 @@ function DecalModel({
     )
 
     return (
-        <group>
+        <group
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+        >
             <primitive object={analysis.scene} />
             {analysis.bodyMesh && frontDecal && frontTransform && (
                 <DesignDecal
@@ -290,6 +359,8 @@ export function Product3DViewer({
     modelUrl,
     frontDecal,
     backDecal,
+    editable = false,
+    onDecalChange,
     frontTextureUrl,
     backTextureUrl,
     productType = 'tshirt',
@@ -297,6 +368,9 @@ export function Product3DViewer({
     autoRotate = true,
     cameraPosition = [0, 0, 7],
 }: Product3DViewerProps) {
+    // Pendant le drag d'un design, on fige la caméra (sinon tout bouge en même temps).
+    const [dragging, setDragging] = React.useState(false)
+
     return (
         <Canvas
             shadows
@@ -317,6 +391,9 @@ export function Product3DViewer({
                             frontDecal={frontDecal}
                             backDecal={backDecal}
                             baseColor={baseColor}
+                            editable={editable}
+                            onDecalChange={onDecalChange}
+                            onDraggingChange={setDragging}
                         />
                     ) : productType === 'mug' ? (
                         <MugMesh frontTextureUrl={frontTextureUrl || ''} baseColor={baseColor} />
@@ -331,8 +408,9 @@ export function Product3DViewer({
             </Suspense>
 
             <OrbitControls
+                enabled={!dragging}
                 enablePan={false}
-                autoRotate={autoRotate}
+                autoRotate={autoRotate && !editable}
                 autoRotateSpeed={1.4}
                 minDistance={4}
                 maxDistance={12}

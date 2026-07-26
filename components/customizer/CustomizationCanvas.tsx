@@ -186,6 +186,14 @@ export const CustomizationCanvas = ({
         frontDecal?: DecalPlacement
         backDecal?: DecalPlacement
     }>({ front: '' })
+    // Dimensions natives des templates + id de vue associé (pour reconvertir
+    // un placement 3D en position 2D dans la bonne vue)
+    const [templateDims, setTemplateDims] = useState<{
+        front?: { w: number; h: number; viewId: string }
+        back?: { w: number; h: number; viewId: string }
+    }>({})
+    // Face dont le design est en cours d'édition dans la 3D
+    const [activeSide, setActiveSide] = useState<'front' | 'back'>('front')
     const views = useMemo<ProductView[]>(() => {
         if (productViews && productViews.length > 0) {
             return productViews
@@ -388,6 +396,14 @@ export const CustomizationCanvas = ({
             // Placements fidèles du design pour le mode GLB (avant + arrière)
             const frontDecal = await placementForView(frontView)
             const backDecal = backView ? await placementForView(backView) : undefined
+            // Dimensions des templates pour la synchro 3D → 2D
+            const frontDims = await loadImageDims(frontView.templateUrl)
+            const backDims = backView ? await loadImageDims(backView.templateUrl) : undefined
+            setTemplateDims({
+                front: { ...frontDims, viewId: frontView.id },
+                back: backDims && backView ? { ...backDims, viewId: backView.id } : undefined,
+            })
+            setActiveSide('front')
             setTextures3D({ front, back, frontDecal, backDecal })
             setShow3D(true)
         } catch (err) {
@@ -395,6 +411,47 @@ export const CustomizationCanvas = ({
         } finally {
             setIs3DLoading(false)
         }
+    }
+
+    /** Applique un placement venu de l'édition 3D : met à jour le decal ET la
+     *  position 2D correspondante (le configurateur 2D reste la source de
+     *  vérité pour l'export production). */
+    const apply3DEdit = (side: 'front' | 'back', placement: DecalPlacement) => {
+        setActiveSide(side)
+        setTextures3D(prev => ({
+            ...prev,
+            [side === 'front' ? 'frontDecal' : 'backDecal']: placement,
+        }))
+        const dims = templateDims[side]
+        if (!dims) return
+        const rad = (placement.rotationDeg * Math.PI) / 180
+        const wpx = placement.uWidth * dims.w
+        const hpx = placement.vHeight * dims.h
+        const cx = placement.u * dims.w
+        const cy = placement.v * dims.h
+        // Inverse du calcul de placementForView : centre → coin haut-gauche Konva
+        setDesignConfigs(prev => ({
+            ...prev,
+            [dims.viewId]: {
+                x: cx - (wpx / 2) * Math.cos(rad) + (hpx / 2) * Math.sin(rad),
+                y: cy - (wpx / 2) * Math.sin(rad) - (hpx / 2) * Math.cos(rad),
+                width: wpx,
+                height: hpx,
+                rotation: placement.rotationDeg,
+            },
+        }))
+    }
+
+    /** Boutons de la modale 3D : taille / rotation du design du côté actif. */
+    const adjust3DDecal = (action: 'grow' | 'shrink' | 'rotL' | 'rotR') => {
+        const current = activeSide === 'front' ? textures3D.frontDecal : textures3D.backDecal
+        if (!current) return
+        const next: DecalPlacement = { ...current }
+        if (action === 'grow') { next.uWidth *= 1.15; next.vHeight *= 1.15 }
+        if (action === 'shrink') { next.uWidth *= 0.87; next.vHeight *= 0.87 }
+        if (action === 'rotL') next.rotationDeg -= 15
+        if (action === 'rotR') next.rotationDeg += 15
+        apply3DEdit(activeSide, next)
     }
 
     const handleRotate = () => {
@@ -637,11 +694,59 @@ export const CustomizationCanvas = ({
                             modelUrl={model3dUrl}
                             frontDecal={textures3D.frontDecal}
                             backDecal={textures3D.backDecal}
+                            editable={!!model3dUrl}
+                            onDecalChange={apply3DEdit}
                             frontTextureUrl={textures3D.front}
                             backTextureUrl={textures3D.back}
                             productType={productType}
                             baseColor={baseColor}
                         />
+
+                        {/* Contrôles d'édition 3D (mode GLB uniquement) */}
+                        {model3dUrl && (
+                            <div className="absolute bottom-0 left-0 right-0 px-5 py-3 bg-gradient-to-t from-black/50 to-transparent">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-white/90 text-xs drop-shadow max-w-[45%]">
+                                        ✋ Glissez le design sur le produit pour le déplacer — la position 2D suit automatiquement
+                                        {textures3D.backDecal && (
+                                            <span className="block mt-0.5 text-white/70">
+                                                Face active : {activeSide === 'front' ? 'avant' : 'arrière'}
+                                            </span>
+                                        )}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => adjust3DDecal('shrink')}
+                                            className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/35 text-white font-bold transition-colors"
+                                            title="Réduire le design"
+                                        >
+                                            −
+                                        </button>
+                                        <button
+                                            onClick={() => adjust3DDecal('grow')}
+                                            className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/35 text-white font-bold transition-colors"
+                                            title="Agrandir le design"
+                                        >
+                                            +
+                                        </button>
+                                        <button
+                                            onClick={() => adjust3DDecal('rotL')}
+                                            className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/35 text-white transition-colors"
+                                            title="Pivoter à gauche"
+                                        >
+                                            ⟲
+                                        </button>
+                                        <button
+                                            onClick={() => adjust3DDecal('rotR')}
+                                            className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/35 text-white transition-colors"
+                                            title="Pivoter à droite"
+                                        >
+                                            ⟳
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
