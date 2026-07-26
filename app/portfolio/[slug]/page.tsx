@@ -22,7 +22,8 @@ interface SourceFile {
  *  projets créés avant l'introduction des slugs. */
 async function getProject(slug: string) {
     try {
-        const bySlug = await prisma.portfolio.findUnique({ where: { slug } })
+        // findFirst : slug n'a pas de contrainte d'unicité en base.
+        const bySlug = await prisma.portfolio.findFirst({ where: { slug } })
         if (bySlug) return bySlug
         return await prisma.portfolio.findUnique({ where: { id: slug } })
     } catch (error) {

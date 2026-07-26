@@ -44,7 +44,12 @@ model Product {
 
 model Portfolio {
   id          String   @id @default(cuid())
-  slug        String?  @unique // URL de la page projet : /portfolio/<slug>
+  // URL de la page projet : /portfolio/<slug>
+  // Volontairement sans contrainte d'unicité en base : la table contient déjà
+  // des lignes, et `prisma db push` refuserait alors de s'appliquer sans
+  // --accept-data-loss, drapeau qu'on ne veut pas activer pour tous les
+  // déploiements. L'unicité est assurée à la création (voir uniqueSlug).
+  slug        String?
   title       String
   description String   // Résumé affiché sur la carte
   detailText  String?  // Description détaillée, affichée sur la page projet
@@ -57,6 +62,8 @@ model Portfolio {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([slug])
 }
 
 model Order {

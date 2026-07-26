@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 /** Génère un slug unique à partir du titre du projet. */
 async function uniqueSlug(title: string, currentId?: string): Promise<string> {
     const base = slugify(title) || 'projet'
-    const existing = await prisma.portfolio.findUnique({ where: { slug: base } })
+    // findFirst (et non findUnique) : slug n'a pas de contrainte d'unicité en base.
+    const existing = await prisma.portfolio.findFirst({ where: { slug: base } })
     if (!existing || existing.id === currentId) return base
     return `${base}-${Date.now().toString(36)}`
 }
