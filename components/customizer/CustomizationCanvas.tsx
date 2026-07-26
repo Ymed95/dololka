@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Upload, RotateCw, ZoomIn, ZoomOut, Move, Loader2, Box, X } from 'lucide-react'
 import type { CustomizationData, ViewDesign } from '@/lib/types/customization'
 import { renderAllViews, renderViewToDataURL } from '@/lib/production/renderDesign'
+import type { DecalPlacement } from './Product3DViewer'
 
 // Le viewer 3D embarque Three.js : on le charge à la demande, côté client.
 const Product3DViewer = dynamic(
@@ -179,7 +180,12 @@ export const CustomizationCanvas = ({
     const [isSaving, setIsSaving] = useState(false)
     const [show3D, setShow3D] = useState(false)
     const [is3DLoading, setIs3DLoading] = useState(false)
-    const [textures3D, setTextures3D] = useState<{ front: string; back?: string; design?: string; aspect: number }>({ front: '', aspect: 1 })
+    const [textures3D, setTextures3D] = useState<{
+        front: string
+        back?: string
+        frontDecal?: DecalPlacement
+        backDecal?: DecalPlacement
+    }>({ front: '' })
     const views = useMemo<ProductView[]>(() => {
         if (productViews && productViews.length > 0) {
             return productViews
@@ -339,20 +345,50 @@ export const CustomizationCanvas = ({
         }
     }
 
+    /** Dimensions natives d'une image (template produit). */
+    const loadImageDims = (src: string) =>
+        new Promise<{ w: number; h: number }>((resolve, reject) => {
+            const img = new window.Image()
+            img.crossOrigin = 'anonymous'
+            img.onload = () => resolve({ w: img.naturalWidth || img.width, h: img.naturalHeight || img.height })
+            img.onerror = () => reject(new Error(`Template introuvable : ${src}`))
+            img.src = src
+        })
+
+    /** Traduit le placement 2D du design d'une vue en placement relatif (0..1)
+     *  pour le decal 3D. Tient compte de la rotation Konva (pivot = coin
+     *  haut-gauche) pour calculer le vrai centre du design. */
+    const placementForView = async (view: ProductView): Promise<DecalPlacement> => {
+        const cfg = designConfigs[view.id] || defaultDesignConfig
+        const { w, h } = await loadImageDims(view.templateUrl)
+        const rad = (cfg.rotation * Math.PI) / 180
+        const cx = cfg.x + (cfg.width / 2) * Math.cos(rad) - (cfg.height / 2) * Math.sin(rad)
+        const cy = cfg.y + (cfg.width / 2) * Math.sin(rad) + (cfg.height / 2) * Math.cos(rad)
+        return {
+            textureUrl: uploadedImage as string,
+            u: cx / w,
+            v: cy / h,
+            uWidth: cfg.width / w,
+            vHeight: cfg.height / h,
+            rotationDeg: cfg.rotation,
+        }
+    }
+
     const handleOpen3D = async () => {
         if (!uploadedImage || is3DLoading) return
         setIs3DLoading(true)
         try {
             const frontView = views.find((v) => v.id === 'front') || views[0]
             const backView = views.find((v) => v.id === 'back')
+            // Rendus composites (mode procédural sans GLB)
             const front = await renderViewToDataURL(buildViewDesign(frontView), { baseColor, pixelRatio: 2 })
             const back = backView
                 ? await renderViewToDataURL(buildViewDesign(backView), { baseColor, pixelRatio: 2 })
                 : undefined
-            // Ratio du design (pour le Decal en mode GLB), basé sur la vue avant.
-            const frontCfg = designConfigs[frontView.id] || defaultDesignConfig
-            const aspect = frontCfg.height > 0 ? frontCfg.width / frontCfg.height : 1
-            setTextures3D({ front, back, design: uploadedImage || undefined, aspect })
+            // Placements fidèles du design pour le mode GLB (avant + arrière)
+            const frontDecal = await placementForView(frontView)
+            const backDecal = backView ? await placementForView(backView) : undefined
+            setTextures3D({ front, back, frontDecal, backDecal })
             setShow3D(true)
         } catch (err) {
             console.error('Aperçu 3D impossible', err)
@@ -599,8 +635,8 @@ export const CustomizationCanvas = ({
                         </div>
                         <Product3DViewer
                             modelUrl={model3dUrl}
-                            designTextureUrl={textures3D.design}
-                            decalAspect={textures3D.aspect}
+                            frontDecal={textures3D.frontDecal}
+                            backDecal={textures3D.backDecal}
                             frontTextureUrl={textures3D.front}
                             backTextureUrl={textures3D.back}
                             productType={productType}

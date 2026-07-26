@@ -6,13 +6,27 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, useTexture, useGLTF, Center, Html, Decal } from '@react-three/drei'
 import * as THREE from 'three'
 
+/** Placement d'un design sur une face, exprimé relativement au template 2D
+ *  du configurateur (coordonnées 0..1, v orienté vers le bas). */
+export interface DecalPlacement {
+    textureUrl: string
+    /** Centre du design (0..1). */
+    u: number
+    v: number
+    /** Taille du design (0..1 de la largeur/hauteur du template). */
+    uWidth: number
+    vHeight: number
+    /** Rotation en degrés (sens du configurateur Konva). */
+    rotationDeg: number
+}
+
 interface Product3DViewerProps {
-    /** Modèle GLB. Si fourni, mode réaliste (mesh + design en Decal). */
+    /** Modèle GLB. Si fourni, mode réaliste (mesh + designs en Decal). */
     modelUrl?: string
-    /** Design brut (PNG transparent) projeté en decal sur le modèle GLB. */
-    designTextureUrl?: string
-    /** Ratio largeur/hauteur du design, pour conserver ses proportions. */
-    decalAspect?: number
+    /** Design positionné sur la face avant. */
+    frontDecal?: DecalPlacement
+    /** Design positionné sur la face arrière. */
+    backDecal?: DecalPlacement
 
     /** Rendu composite avant (mode procédural, sans GLB). */
     frontTextureUrl?: string
@@ -22,6 +36,8 @@ interface Product3DViewerProps {
     productType?: string
     baseColor?: string
     autoRotate?: boolean
+    /** Position initiale de la caméra (debug/vues spécifiques). */
+    cameraPosition?: [number, number, number]
 }
 
 function useSrgbTexture(url: string): THREE.Texture {
@@ -34,13 +50,11 @@ function useSrgbTexture(url: string): THREE.Texture {
     return texture
 }
 
-/** Analyse du GLB : repère la zone d'impression et le mesh « corps » cible. */
+/** Analyse du GLB : mesh « corps » cible + teinte couleur. */
 interface ModelAnalysis {
     scene: THREE.Group
     bodyMesh: THREE.Mesh | null
-    decalPosition: THREE.Vector3
-    decalRotation: THREE.Euler
-    printSize: { width: number; height: number }
+    bodyBox: THREE.Box3
 }
 
 function analyzeModel(source: THREE.Object3D, baseColor: string): ModelAnalysis {
@@ -48,14 +62,12 @@ function analyzeModel(source: THREE.Object3D, baseColor: string): ModelAnalysis 
     const scene = source.clone(true) as THREE.Group
     scene.updateMatrixWorld(true)
 
-    let printArea: THREE.Mesh | null = null
     const candidates: THREE.Mesh[] = []
 
     scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh
         if (!mesh.isMesh) return
-        if (mesh.name === 'PrintArea') {
-            printArea = mesh
+        if (mesh.name === 'PrintArea' || mesh.name === 'PrintAreaBack') {
             mesh.visible = false
         } else {
             candidates.push(mesh)
@@ -91,48 +103,41 @@ function analyzeModel(source: THREE.Object3D, baseColor: string): ModelAnalysis 
         }
     })
 
-    // Position / rotation du decal dans l'espace LOCAL du mesh corps.
-    const decalPosition = new THREE.Vector3()
-    const decalRotation = new THREE.Euler()
-    let printSize = { width: 1.2, height: 1.5 }
-
-    const pa = printArea as THREE.Mesh | null
+    const bodyBox = new THREE.Box3()
     const bm = bodyMesh as THREE.Mesh | null
+    if (bm?.geometry.boundingBox) bodyBox.copy(bm.geometry.boundingBox)
 
-    if (pa && bm) {
-        const worldPos = new THREE.Vector3()
-        const worldQuat = new THREE.Quaternion()
-        pa.getWorldPosition(worldPos)
-        pa.getWorldQuaternion(worldQuat)
+    return { scene, bodyMesh: bm, bodyBox }
+}
 
-        // Conversion monde → local du mesh corps.
-        bm.updateMatrixWorld(true)
-        decalPosition.copy(bm.worldToLocal(worldPos.clone()))
+/** Traduit un placement 2D (relatif au template) en transform de decal 3D
+ *  sur la face avant ou arrière du bounding box du mesh corps. */
+function computeDecalTransform(
+    box: THREE.Box3,
+    placement: DecalPlacement,
+    side: 'front' | 'back'
+): { position: THREE.Vector3; rotation: THREE.Euler; scale: [number, number, number] } {
+    const w3 = box.max.x - box.min.x
+    const h3 = box.max.y - box.min.y
+    const d3 = Math.max(box.max.z - box.min.z, 0.1)
 
-        const bodyWorldQuat = new THREE.Quaternion()
-        bm.getWorldQuaternion(bodyWorldQuat)
-        const localQuat = bodyWorldQuat.clone().invert().multiply(worldQuat)
-        decalRotation.setFromQuaternion(localQuat)
+    const y = box.max.y - placement.v * h3
+    const rad = (placement.rotationDeg * Math.PI) / 180
 
-        // Taille de la zone depuis la PlaneGeometry.
-        const geo = pa.geometry as THREE.PlaneGeometry
-        const params = geo.parameters as { width?: number; height?: number } | undefined
-        if (params?.width && params?.height) {
-            printSize = { width: params.width, height: params.height }
+    if (side === 'front') {
+        return {
+            position: new THREE.Vector3(box.min.x + placement.u * w3, y, box.max.z),
+            // Konva : rotation horaire (y vers le bas) → -z en three (y vers le haut).
+            rotation: new THREE.Euler(0, 0, -rad),
+            scale: [placement.uWidth * w3, placement.vHeight * h3, d3],
         }
-    } else if (bm) {
-        // Pas de PrintArea : on centre sur la face avant du bounding box.
-        bm.geometry.computeBoundingBox()
-        const bb = bm.geometry.boundingBox!
-        const size = new THREE.Vector3()
-        bb.getSize(size)
-        const center = new THREE.Vector3()
-        bb.getCenter(center)
-        decalPosition.set(center.x, center.y, bb.max.z)
-        printSize = { width: size.x * 0.6, height: size.y * 0.6 }
     }
-
-    return { scene, bodyMesh: bm, decalPosition, decalRotation, printSize }
+    // Face arrière : vue depuis -z, l'axe x apparaît inversé.
+    return {
+        position: new THREE.Vector3(box.max.x - placement.u * w3, y, box.min.z),
+        rotation: new THREE.Euler(0, Math.PI, rad),
+        scale: [placement.uWidth * w3, placement.vHeight * h3, d3],
+    }
 }
 
 /** Decal du design, monté uniquement quand une texture existe (le hook
@@ -171,16 +176,16 @@ function DesignDecal({
     )
 }
 
-/** Mode réaliste : modèle GLB + design projeté en Decal. */
+/** Mode réaliste : modèle GLB + designs projetés en Decal (avant/arrière). */
 function DecalModel({
     modelUrl,
-    designTextureUrl,
-    decalAspect = 1,
+    frontDecal,
+    backDecal,
     baseColor = '#ffffff',
 }: {
     modelUrl: string
-    designTextureUrl?: string
-    decalAspect?: number
+    frontDecal?: DecalPlacement
+    backDecal?: DecalPlacement
     baseColor?: string
 }) {
     const { scene: source } = useGLTF(modelUrl)
@@ -190,33 +195,34 @@ function DecalModel({
     // premier montage (un useEffect arriverait trop tard → crash drei).
     bodyRef.current = analysis.bodyMesh
 
-    // Échelle du decal : on inscrit le design dans la zone en gardant le ratio.
-    const decalScale = useMemo<[number, number, number]>(() => {
-        const { width: pw, height: ph } = analysis.printSize
-        const areaAspect = pw / ph
-        let sw: number
-        let sh: number
-        if (decalAspect > areaAspect) {
-            sw = pw
-            sh = pw / decalAspect
-        } else {
-            sh = ph
-            sw = ph * decalAspect
-        }
-        const depth = Math.max(pw, ph) * 1.5 // profondeur de projection
-        return [sw, sh, depth]
-    }, [analysis.printSize, decalAspect])
+    const frontTransform = useMemo(
+        () => (frontDecal ? computeDecalTransform(analysis.bodyBox, frontDecal, 'front') : null),
+        [analysis.bodyBox, frontDecal]
+    )
+    const backTransform = useMemo(
+        () => (backDecal ? computeDecalTransform(analysis.bodyBox, backDecal, 'back') : null),
+        [analysis.bodyBox, backDecal]
+    )
 
     return (
         <group>
             <primitive object={analysis.scene} />
-            {analysis.bodyMesh && designTextureUrl && (
+            {analysis.bodyMesh && frontDecal && frontTransform && (
                 <DesignDecal
                     bodyRef={bodyRef}
-                    url={designTextureUrl}
-                    position={analysis.decalPosition}
-                    rotation={analysis.decalRotation}
-                    scale={decalScale}
+                    url={frontDecal.textureUrl}
+                    position={frontTransform.position}
+                    rotation={frontTransform.rotation}
+                    scale={frontTransform.scale}
+                />
+            )}
+            {analysis.bodyMesh && backDecal && backTransform && (
+                <DesignDecal
+                    bodyRef={bodyRef}
+                    url={backDecal.textureUrl}
+                    position={backTransform.position}
+                    rotation={backTransform.rotation}
+                    scale={backTransform.scale}
                 />
             )}
         </group>
@@ -282,18 +288,19 @@ function Loader() {
 
 export function Product3DViewer({
     modelUrl,
-    designTextureUrl,
-    decalAspect = 1,
+    frontDecal,
+    backDecal,
     frontTextureUrl,
     backTextureUrl,
     productType = 'tshirt',
     baseColor = '#ffffff',
     autoRotate = true,
+    cameraPosition = [0, 0, 7],
 }: Product3DViewerProps) {
     return (
         <Canvas
             shadows
-            camera={{ position: [0, 0, 7], fov: 40 }}
+            camera={{ position: cameraPosition, fov: 40 }}
             dpr={[1, 2]}
             gl={{ preserveDrawingBuffer: true, antialias: true }}
         >
@@ -307,8 +314,8 @@ export function Product3DViewer({
                     {modelUrl ? (
                         <DecalModel
                             modelUrl={modelUrl}
-                            designTextureUrl={designTextureUrl}
-                            decalAspect={decalAspect}
+                            frontDecal={frontDecal}
+                            backDecal={backDecal}
                             baseColor={baseColor}
                         />
                     ) : productType === 'mug' ? (
