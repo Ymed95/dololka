@@ -23,7 +23,7 @@ interface Product {
 
 const tabs = [
     { id: 'personnalisation', label: 'Personnalisation', icon: Palette, description: 'Créez vos produits sur mesure' },
-    { id: 'textile', label: 'Textile Vierge', icon: Shirt, description: 'Produits sans personnalisation' },
+    { id: 'textile', label: 'Textile Vierge', icon: Shirt, description: 'Nos supports fournisseurs, personnalisables' },
     { id: 'materiel', label: 'Matériel & Fournitures', icon: PenTool, description: 'Outils et consommables pro' },
     { id: 'impression', label: 'Impression', icon: Printer, description: 'Flyers, affiches et supports imprimés' },
 ]
@@ -246,7 +246,9 @@ function BoutiqueContent() {
                                     )}
                                     <div className="flex items-center justify-between">
                                         <span className="text-primary-600 font-bold">{product.price.toFixed(2)}€</span>
-                                        {activeTab === 'personnalisation' ? (
+                                        {/* Le textile vierge est aussi personnalisable :
+                                            il sert de support dans le configurateur. */}
+                                        {activeTab === 'personnalisation' || activeTab === 'textile' ? (
                                             <Link href={`/customize/${product.id}`} className="text-xs text-primary-600 font-medium flex items-center gap-1">
                                                 Personnaliser <ArrowRight className="w-3 h-3" />
                                             </Link>

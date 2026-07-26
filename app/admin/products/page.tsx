@@ -86,7 +86,7 @@ export default function AdminProducts() {
     const fetchProducts = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/products?type=${activeType}`)
+            const res = await fetch(`/api/products?type=${activeType}&includeInactive=1`)
             const data = await res.json()
             if (Array.isArray(data)) setProducts(data)
             setLoading(false)

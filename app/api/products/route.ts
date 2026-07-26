@@ -11,10 +11,29 @@ export async function GET(request: NextRequest) {
         const category = searchParams.get('category')
         const search = searchParams.get('search')
         const type = searchParams.get('type')
+        // Plusieurs types à la fois, ex. "customizable,textile" (sélecteur du configurateur)
+        const types = searchParams.get('types')
+        const includeInactive = searchParams.get('includeInactive') === '1'
 
         const where: any = {}
 
-        if (type) {
+        // Les produits désactivés ne sont visibles que pour un administrateur.
+        if (includeInactive) {
+            const session = await getServerSession(authOptions)
+            if ((session?.user as any)?.role !== 'admin') {
+                return NextResponse.json(
+                    { error: 'Réservé aux administrateurs' },
+                    { status: 403 }
+                )
+            }
+        } else {
+            where.isActive = true
+        }
+
+        if (types) {
+            const list = types.split(',').map((t) => t.trim()).filter(Boolean)
+            if (list.length > 0) where.type = { in: list }
+        } else if (type) {
             where.type = type
         }
 

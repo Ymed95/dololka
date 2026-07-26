@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/ui/Button'
-import { ArrowLeft, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, ShoppingCart, Check } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cartStore'
 import { uploadDataUrl } from '@/lib/production/uploadAsset'
 import type { CustomizationData } from '@/lib/types/customization'
@@ -30,6 +31,8 @@ interface Product {
     description: string
     price: number
     category: string
+    /** "customizable" | "textile" | "materiel" */
+    type?: string
     imageUrl: string
     mockupUrl?: string | null
     model3dUrl?: string | null
@@ -72,6 +75,8 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
     const [selectedSize, setSelectedSize] = useState<string>('M')
     const [selectedColor, setSelectedColor] = useState(productColors[0])
     const [quantity, setQuantity] = useState(1)
+    // Autres supports de la même catégorie (nos modèles + textile fournisseurs)
+    const [siblings, setSiblings] = useState<Product[]>([])
 
     // Fetch product from database
     useEffect(() => {
@@ -93,6 +98,27 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
 
         fetchProduct()
     }, [params.id])
+
+    // Supports disponibles dans la même catégorie, pour pouvoir en changer
+    // sans quitter le configurateur ni perdre le design en cours.
+    useEffect(() => {
+        if (!product?.category) return
+        fetch(`/api/products?types=customizable,textile&category=${encodeURIComponent(product.category)}`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (Array.isArray(data)) setSiblings(data)
+            })
+            .catch(() => {})
+    }, [product?.category])
+
+    /** Change de support en conservant design, couleur, taille et quantité.
+     *  On met l'URL à jour sans recharger la page (un remount réinitialiserait
+     *  la personnalisation en cours). */
+    const handleSelectProduct = (next: Product) => {
+        if (next.id === product?.id) return
+        setProduct(next)
+        window.history.replaceState(null, '', `/customize/${next.id}`)
+    }
 
     const handleSaveCustomization = async (data: CustomizationData) => {
         if (!product) return
@@ -243,6 +269,59 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
 
                             <h1 className="text-2xl md:text-3xl font-bold mb-4">{product.name}</h1>
                             <p className="text-gray-600 mb-6">{product.description}</p>
+
+                            {/* Choix du support : tous les modèles de la même
+                                catégorie, y compris le textile fournisseurs. */}
+                            {siblings.length > 1 && (
+                                <div className="mb-6">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                        Modèle ({siblings.length} disponibles)
+                                    </label>
+                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                        {siblings.map((p) => {
+                                            const isCurrent = p.id === product.id
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => handleSelectProduct(p)}
+                                                    className={`w-full flex items-center gap-3 p-2 rounded-lg border-2 text-left transition-all ${
+                                                        isCurrent
+                                                            ? 'border-primary-500 bg-primary-50'
+                                                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <div className="relative w-12 h-12 flex-shrink-0 bg-gray-50 rounded overflow-hidden">
+                                                        {p.imageUrl && (
+                                                            <Image
+                                                                src={p.imageUrl}
+                                                                alt={p.name}
+                                                                fill
+                                                                className="object-contain p-1"
+                                                                sizes="48px"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className={`text-sm font-medium truncate ${isCurrent ? 'text-primary-700' : 'text-gray-800'}`}>
+                                                            {p.name}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {p.price.toFixed(2)}€
+                                                            {p.type === 'textile' && ' · textile fournisseur'}
+                                                        </p>
+                                                    </div>
+                                                    {isCurrent && (
+                                                        <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                                                    )}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Changez de modèle à tout moment : votre design est conservé.
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-lg p-4 mb-6">
                                 <p className="text-sm opacity-90">Prix</p>
