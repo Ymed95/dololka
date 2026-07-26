@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { PrismaClient } from '@prisma/client'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { ArrowLeft, ArrowRight, Download, FileText } from 'lucide-react'
+import { ProjectGallery } from '@/components/portfolio/ProjectGallery'
 
 const prisma = new PrismaClient()
 
@@ -61,8 +61,11 @@ export default async function ProjectPage({ params }: { params: { slug: string }
     const gallery = ((project.images as string[] | null) ?? []).filter(Boolean)
     const files = ((project.files as unknown as SourceFile[] | null) ?? []).filter((f) => f?.url)
     const cover = project.imageUrl || gallery[0]
-    // Évite d'afficher deux fois la couverture si elle ouvre déjà la galerie.
-    const rest = gallery.filter((url) => url !== cover)
+    // Tous les visuels dans un seul carrousel, la couverture en premier et
+    // sans doublon (elle fait souvent déjà partie de la galerie).
+    const allImages = [cover, ...gallery.filter((url) => url !== cover)].filter(
+        (u): u is string => Boolean(u)
+    )
     const tags = project.tags.split(',').map((t) => t.trim()).filter(Boolean)
 
     return (
@@ -91,17 +94,10 @@ export default async function ProjectPage({ params }: { params: { slug: string }
 
             <section className="py-12 md:py-16">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Visuel principal */}
-                    {cover && (
-                        <div className="relative w-full rounded-2xl overflow-hidden bg-white border border-gray-100 mb-8" style={{ minHeight: 280 }}>
-                            <Image
-                                src={cover}
-                                alt={project.title}
-                                width={1600}
-                                height={1000}
-                                className="w-full h-auto object-contain"
-                                priority
-                            />
+                    {/* Visuels du projet : carrousel horizontal */}
+                    {allImages.length > 0 && (
+                        <div className="mb-8">
+                            <ProjectGallery images={allImages} title={project.title} />
                         </div>
                     )}
 
@@ -110,26 +106,6 @@ export default async function ProjectPage({ params }: { params: { slug: string }
                         <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 mb-8">
                             <h2 className="text-2xl font-bold mb-4">À propos du projet</h2>
                             <p className="text-gray-700 leading-relaxed whitespace-pre-line">{project.detailText}</p>
-                        </div>
-                    )}
-
-                    {/* Galerie */}
-                    {rest.length > 0 && (
-                        <div className="mb-8">
-                            <h2 className="text-2xl font-bold mb-4">Galerie</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {rest.map((url, i) => (
-                                    <div key={`${url}-${i}`} className="rounded-xl overflow-hidden bg-white border border-gray-100">
-                                        <Image
-                                            src={url}
-                                            alt={`${project.title} — visuel ${i + 2}`}
-                                            width={1200}
-                                            height={900}
-                                            className="w-full h-auto object-contain"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     )}
 
