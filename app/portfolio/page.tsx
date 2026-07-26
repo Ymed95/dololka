@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
+import { HorizontalScroller } from '@/components/portfolio/HorizontalScroller'
 
 const categories = [
     { value: 'all', label: 'Tout' },
@@ -109,7 +110,7 @@ export default function PortfolioPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <HorizontalScroller itemWidth={340} ariaLabel="Nos réalisations">
                             {filtered.map((project, index) => {
                                 const cover = project.imageUrl || project.images?.[0]
                                 const extra = (project.images?.length || 0) - 1
@@ -117,7 +118,7 @@ export default function PortfolioPage() {
                                 <Link
                                     key={project.id}
                                     href={`/portfolio/${project.slug || project.id}`}
-                                    className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                                    className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col w-[300px] sm:w-[320px] flex-shrink-0 snap-start"
                                 >
                                     {/* Visuel de couverture, ou dégradé si le projet n'a pas d'image */}
                                     {cover ? (
@@ -157,7 +158,7 @@ export default function PortfolioPage() {
                                 </Link>
                                 )
                             })}
-                        </div>
+                        </HorizontalScroller>
                     )}
                 </div>
             </section>
