@@ -179,6 +179,10 @@ export const CustomizationCanvas = ({
     const [designFileName, setDesignFileName] = useState<string | undefined>(undefined)
     // Précisions libres saisies par le client, transmises à l'atelier.
     const [customNotes, setCustomNotes] = useState('')
+    // Conditions obligatoires avant l'ajout au panier (droits + qualité).
+    const [acceptedRights, setAcceptedRights] = useState(false)
+    const [acceptedQuality, setAcceptedQuality] = useState(false)
+    const termsAccepted = acceptedRights && acceptedQuality
     const [isSaving, setIsSaving] = useState(false)
     const [show3D, setShow3D] = useState(false)
     const [is3DLoading, setIs3DLoading] = useState(false)
@@ -353,6 +357,11 @@ export const CustomizationCanvas = ({
                 designFileName,
                 views: renderedViews,
                 customNotes: customNotes.trim() || undefined,
+                acceptedTerms: {
+                    rights: acceptedRights,
+                    quality: acceptedQuality,
+                    acceptedAt: new Date().toISOString(),
+                },
             }
 
             await onSave(data)
@@ -839,10 +848,48 @@ export const CustomizationCanvas = ({
                 </div>
             )}
 
+            {/* Conditions à accepter avant l'ajout au panier.
+                L'acceptation est horodatée et jointe à la commande. */}
+            {uploadedImage && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={acceptedRights}
+                            onChange={(e) => setAcceptedRights(e.target.checked)}
+                            className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                            Je certifie être le propriétaire de ce visuel ou disposer des droits
+                            d&apos;utilisation nécessaires à son impression.
+                        </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={acceptedQuality}
+                            onChange={(e) => setAcceptedQuality(e.target.checked)}
+                            className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                            Je reconnais que la qualité du rendu final dépend du fichier fourni et que
+                            l&apos;agence décline toute responsabilité en cas de mauvaise résolution ou de flou.
+                        </span>
+                    </label>
+
+                    {!termsAccepted && (
+                        <p className="text-xs text-gray-500 pt-1">
+                            Ces deux confirmations sont nécessaires pour ajouter l&apos;article au panier.
+                        </p>
+                    )}
+                </div>
+            )}
+
             {/* Save Button */}
             <Button
                 onClick={handleSave}
-                disabled={!uploadedImage || isSaving || printedCount === 0}
+                disabled={!uploadedImage || isSaving || printedCount === 0 || !termsAccepted}
                 className="w-full"
                 size="lg"
             >

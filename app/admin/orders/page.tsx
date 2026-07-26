@@ -491,6 +491,26 @@ export default function AdminOrders() {
                                 </div>
                             )}
 
+                            {/* Preuve d'acceptation des conditions par le client */}
+                            {(selectedOrder.termsAcceptedAt || selectedOrder.customizationData?.acceptedTerms) && (
+                                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                                    <h3 className="font-bold text-gray-900 mb-2 text-sm">Conditions acceptées par le client</h3>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        <li>✓ Détient les droits d&apos;utilisation du visuel fourni</li>
+                                        <li>✓ Informé que la qualité du rendu dépend de son fichier</li>
+                                    </ul>
+                                    {selectedOrder.termsAcceptedAt && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Accepté le{' '}
+                                            {new Date(selectedOrder.termsAcceptedAt).toLocaleString('fr-FR', {
+                                                day: 'numeric', month: 'long', year: 'numeric',
+                                                hour: '2-digit', minute: '2-digit',
+                                            })}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Récapitulatif généré (produit + livraison) */}
                             {selectedOrder.customNotes && (
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6">

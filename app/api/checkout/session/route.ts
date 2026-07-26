@@ -121,6 +121,10 @@ export async function POST(request: NextRequest) {
                     // Précisions saisies par le client dans le configurateur,
                     // conservées à part du récapitulatif généré.
                     clientNotes: customization?.customNotes || null,
+                    // Preuve d'acceptation des conditions (droits + qualité).
+                    termsAcceptedAt: customization?.acceptedTerms?.acceptedAt
+                        ? new Date(customization.acceptedTerms.acceptedAt)
+                        : null,
                 },
             })
             orderIds.push(order.id)

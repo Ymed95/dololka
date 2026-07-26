@@ -40,6 +40,16 @@ export interface CustomizationData {
     views: ViewDesign[]
     /** Notes libres du client. */
     customNotes?: string
+    /** Conditions acceptées par le client avant l'ajout au panier.
+     *  Conservé pour pouvoir prouver l'acceptation en cas de litige. */
+    acceptedTerms?: {
+        /** Détention des droits sur le visuel fourni. */
+        rights: boolean
+        /** Responsabilité sur la qualité du fichier fourni. */
+        quality: boolean
+        /** Horodatage ISO de l'acceptation. */
+        acceptedAt: string
+    }
 }
 
 /** Instantané produit conservé dans le panier (indépendant de la DB). */

@@ -84,6 +84,7 @@ model Order {
   designRotation  Float?   // Rotation angle
   customNotes     String?  // Récapitulatif produit + livraison (généré)
   clientNotes     String?  // Précisions libres saisies par le client au moment de la personnalisation
+  termsAcceptedAt DateTime? // Acceptation des conditions (droits sur le visuel + qualité du fichier)
 
   // Asset de production
   baseColor         String?  // Couleur de base du vêtement (hex)
