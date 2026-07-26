@@ -14,10 +14,18 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     })
 }
 
+/** Côté le plus long du rendu composite, en pixels.
+ *  Ce visuel sert de RÉFÉRENCE à l'atelier (voir où le design est placé) :
+ *  le fichier réellement imprimé est le design d'origine du client, conservé
+ *  intact. Au-delà, on alourdit inutilement le panier et la base
+ *  (un 3072px pèse ~7,5 Mo, soit >10 Mo en dataURL, au-dessus du quota
+ *  localStorage du panier). */
+const MAX_RENDER_SIDE = 1600
+
 export interface RenderOptions {
     /** Couleur de teinte du vêtement (hex). #ffffff = aucune teinte. */
     baseColor?: string
-    /** Facteur de sur-échantillonnage pour la HD (3 = ~3x la taille native). */
+    /** Facteur de sur-échantillonnage souhaité (plafonné par MAX_RENDER_SIDE). */
     pixelRatio?: number
 }
 
@@ -25,17 +33,21 @@ export interface RenderOptions {
  * Compose une vue en PNG dataURL.
  * Les coordonnées du design (designX/Y/Width/Height) sont exprimées dans
  * l'espace en pixels natifs du template produit — on rend donc à la taille
- * native du template multipliée par `pixelRatio`.
+ * native du template multipliée par `pixelRatio`, plafonnée.
  */
 export async function renderViewToDataURL(
     view: ViewDesign,
     opts: RenderOptions = {}
 ): Promise<string> {
-    const pixelRatio = opts.pixelRatio ?? 3
     const product = await loadImage(view.templateUrl)
 
     const baseWidth = product.naturalWidth || product.width
     const baseHeight = product.naturalHeight || product.height
+
+    // Plafonne le facteur d'échelle pour rester sous MAX_RENDER_SIDE.
+    const requested = opts.pixelRatio ?? 3
+    const maxRatio = MAX_RENDER_SIDE / Math.max(baseWidth, baseHeight)
+    const pixelRatio = Math.max(1, Math.min(requested, maxRatio))
 
     const canvas = document.createElement('canvas')
     canvas.width = Math.round(baseWidth * pixelRatio)

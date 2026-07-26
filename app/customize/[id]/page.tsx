@@ -100,6 +100,15 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
         // Upload des assets (design + rendus de production) pour alléger le
         // panier et la DB. Le design est partagé entre les vues : on l'upload
         // une seule fois et on réutilise l'URL.
+        //
+        // Si l'upload échoue (pas de Blob configuré, réseau…), uploadDataUrl
+        // renvoie la dataURL d'origine. On refuse alors de la conserver
+        // au-delà d'une certaine taille : le panier vit dans localStorage
+        // (~5 Mo de quota) et une dataURL volumineuse le casserait entièrement.
+        const MAX_INLINE_BYTES = 600 * 1024
+        const tooHeavy = (url?: string) =>
+            !!url && url.startsWith('data:') && url.length > MAX_INLINE_BYTES
+
         let sharedDesignUrl: string | undefined
         const uploadedViews = await Promise.all(
             data.views.map(async (view) => {
@@ -109,12 +118,34 @@ export default function CustomizePage({ params }: { params: { id: string } }) {
                         sharedDesignUrl || (await uploadDataUrl(designFileUrl, 'design'))
                     designFileUrl = sharedDesignUrl
                 }
-                const productionImageUrl = view.productionImageUrl?.startsWith('data:')
+                let productionImageUrl = view.productionImageUrl?.startsWith('data:')
                     ? await uploadDataUrl(view.productionImageUrl, `prod-${view.viewId}`)
                     : view.productionImageUrl
+
+                // Le rendu composite n'est qu'une référence visuelle : l'admin
+                // le reconstitue depuis le design + les coordonnées si absent.
+                if (tooHeavy(productionImageUrl)) {
+                    console.warn(
+                        `Rendu de production non stocké (upload indisponible, ${Math.round((productionImageUrl!.length) / 1024)} Ko). ` +
+                        `L'aperçu admin sera recalculé depuis le design et sa position.`
+                    )
+                    productionImageUrl = undefined
+                }
+
                 return { ...view, designFileUrl, productionImageUrl }
             })
         )
+
+        // Le design lui-même est indispensable à la production : s'il est trop
+        // lourd pour le panier et non uploadé, on prévient le client plutôt que
+        // de casser silencieusement la commande.
+        if (uploadedViews.some((v) => tooHeavy(v.designFileUrl))) {
+            alert(
+                "Votre design n'a pas pu être enregistré sur le serveur (fichier trop volumineux). " +
+                "Merci de réessayer avec une image plus légère, ou de nous contacter."
+            )
+            return
+        }
 
         const customization: CustomizationData = { ...data, views: uploadedViews }
 
