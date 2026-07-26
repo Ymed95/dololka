@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { Upload, X, Loader2, LinkIcon } from 'lucide-react'
-import { uploadDataUrl } from '@/lib/production/uploadAsset'
+import { uploadDataUrlDetailed } from '@/lib/production/uploadAsset'
 
 interface ImageUploadFieldProps {
     label: string
@@ -52,14 +52,14 @@ export function ImageUploadField({
                 reader.readAsDataURL(file)
             })
 
-            const url = await uploadDataUrl(dataUrl, prefix)
-            if (url.startsWith('data:')) {
-                // uploadDataUrl renvoie la dataURL d'origine quand le stockage
-                // échoue : inutile de l'enregistrer en base, elle serait énorme.
-                setError("Envoi impossible : le stockage de fichiers n'est pas configuré (BLOB_READ_WRITE_TOKEN).")
+            const result = await uploadDataUrlDetailed(dataUrl, prefix)
+            if (!result.stored) {
+                // On n'enregistre jamais la dataURL de repli en base : elle
+                // serait énorme. On affiche la cause réelle renvoyée par le serveur.
+                setError(result.error || "L'envoi du fichier a échoué.")
                 return
             }
-            onChange(url)
+            onChange(result.url)
         } catch (err) {
             console.error(err)
             setError("L'envoi du fichier a échoué.")

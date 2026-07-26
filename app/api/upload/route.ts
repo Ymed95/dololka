@@ -99,10 +99,12 @@ export async function POST(request: NextRequest) {
             (await storeOnLocalFs(fileName, buffer))
 
         if (!url) {
-            return NextResponse.json(
-                { error: "Échec de l'enregistrement du fichier" },
-                { status: 500 }
-            )
+            // Distingue l'absence de configuration d'une vraie panne : le
+            // message doit dire quoi faire, pas seulement qu'il y a un échec.
+            const error = process.env.BLOB_READ_WRITE_TOKEN
+                ? "Le stockage a refusé le fichier. Vérifiez que le store Blob est bien connecté au projet."
+                : "Aucun stockage de fichiers n'est configuré. Créez un store Vercel Blob et connectez-le au projet (variable BLOB_READ_WRITE_TOKEN), puis redéployez."
+            return NextResponse.json({ error }, { status: 500 })
         }
 
         return NextResponse.json({ url })
