@@ -44,12 +44,16 @@ model Product {
 
 model Portfolio {
   id          String   @id @default(cuid())
+  slug        String?  @unique // URL de la page projet : /portfolio/<slug>
   title       String
-  description String
+  description String   // Résumé affiché sur la carte
+  detailText  String?  // Description détaillée, affichée sur la page projet
   category    String   // "branding", "web", "social", "textile", "design", "pub"
   tags        String   // Comma-separated tags
   color       String   @default("from-primary-500 to-secondary-500") // Gradient CSS classes
-  imageUrl    String?
+  imageUrl    String?  // Visuel principal (couverture)
+  images      Json?    // Galerie : string[] d'URLs d'images
+  files       Json?    // Fichiers sources téléchargeables : { url, name, ext }[]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -48,6 +48,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         console.error('Sitemap : services indisponibles', error)
     }
 
+    // Projets du portfolio
+    try {
+        const projects = await prisma.portfolio.findMany({
+            where: { isActive: true },
+            select: { id: true, slug: true, updatedAt: true },
+        })
+        for (const p of projects) {
+            entries.push({
+                url: `${SITE_URL}/portfolio/${p.slug || p.id}`,
+                lastModified: p.updatedAt ?? now,
+                changeFrequency: 'monthly',
+                priority: 0.6,
+            })
+        }
+    } catch (error) {
+        console.error('Sitemap : projets indisponibles', error)
+    }
+
     // Fiches produits de la boutique
     try {
         const products = await prisma.product.findMany({

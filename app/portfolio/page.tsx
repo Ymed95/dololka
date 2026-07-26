@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
 
 const categories = [
@@ -19,12 +20,14 @@ const categories = [
 
 interface PortfolioProject {
     id: string
+    slug?: string | null
     title: string
     description: string
     category: string
     tags: string
     color: string
     imageUrl?: string
+    images?: string[]
     isActive: boolean
 }
 
@@ -107,24 +110,53 @@ export default function PortfolioPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filtered.map((project, index) => (
-                                <div key={project.id} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300">
-                                    <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center`}>
-                                        <span className="text-white/80 text-6xl font-black">{String(index + 1).padStart(2, '0')}</span>
-                                    </div>
-                                    <div className="p-6">
+                            {filtered.map((project, index) => {
+                                const cover = project.imageUrl || project.images?.[0]
+                                const extra = (project.images?.length || 0) - 1
+                                return (
+                                <Link
+                                    key={project.id}
+                                    href={`/portfolio/${project.slug || project.id}`}
+                                    className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                                >
+                                    {/* Visuel de couverture, ou dégradé si le projet n'a pas d'image */}
+                                    {cover ? (
+                                        <div className="relative h-48 bg-gray-50 overflow-hidden">
+                                            <Image
+                                                src={cover}
+                                                alt={project.title}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                sizes="(max-width: 768px) 100vw, 33vw"
+                                            />
+                                            {extra > 0 && (
+                                                <span className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs rounded-full">
+                                                    +{extra} image{extra > 1 ? 's' : ''}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center`}>
+                                            <span className="text-white/80 text-6xl font-black">{String(index + 1).padStart(2, '0')}</span>
+                                        </div>
+                                    )}
+                                    <div className="p-6 flex flex-col flex-1">
                                         <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{project.title}</h3>
-                                        <p className="text-gray-600 text-sm mb-4 leading-relaxed">{project.description}</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {project.tags.split(',').map((tag) => (
+                                        <p className="text-gray-600 text-sm mb-4 leading-relaxed flex-1">{project.description}</p>
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {project.tags.split(',').filter(Boolean).map((tag) => (
                                                 <span key={tag} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
                                                     {tag.trim()}
                                                 </span>
                                             ))}
                                         </div>
+                                        <span className="inline-flex items-center text-primary-600 text-sm font-medium">
+                                            Voir le projet <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                                        </span>
                                     </div>
-                                </div>
-                            ))}
+                                </Link>
+                                )
+                            })}
                         </div>
                     )}
                 </div>

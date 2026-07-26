@@ -13,11 +13,19 @@ import { randomUUID } from 'crypto'
 //   3. Fallback côté client : conserve la dataURL d'origine (jamais bloquant).
 
 const ALLOWED_TYPES: Record<string, string> = {
+    // Images affichables directement dans le navigateur
     'image/png': 'png',
     'image/jpeg': 'jpg',
     'image/jpg': 'jpg',
     'image/webp': 'webp',
     'image/svg+xml': 'svg',
+    // Fichiers sources : stockés pour téléchargement, non affichables en image
+    'application/pdf': 'pdf',
+    'application/postscript': 'ai', // Illustrator (.ai) et EPS
+    'application/illustrator': 'ai',
+    'application/x-photoshop': 'psd',
+    'image/vnd.adobe.photoshop': 'psd',
+    'application/zip': 'zip',
 }
 
 /** Un stockage Blob est disponible si l'on a soit un token de lecture/écriture

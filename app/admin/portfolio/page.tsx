@@ -7,6 +7,8 @@ import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
+import { SourceFilesUpload, type SourceFile } from '@/components/admin/SourceFilesUpload'
 import { Plus, Edit, Trash2, X, Save } from 'lucide-react'
 
 const categoryOptions = [
@@ -41,8 +43,12 @@ export default function AdminPortfolio() {
     const [showForm, setShowForm] = useState(false)
     const [editingProject, setEditingProject] = useState<any | null>(null)
     const [formData, setFormData] = useState({
-        title: '', description: '', category: 'branding', tags: '', color: 'from-primary-500 to-secondary-500', imageUrl: '',
+        title: '', description: '', detailText: '', category: 'branding', tags: '',
+        color: 'from-primary-500 to-secondary-500', imageUrl: '',
     })
+    // Galerie et fichiers sources, gérés à part car ce sont des listes.
+    const [images, setImages] = useState<string[]>([])
+    const [files, setFiles] = useState<SourceFile[]>([])
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/login')
@@ -62,7 +68,9 @@ export default function AdminPortfolio() {
     }
 
     const resetForm = () => {
-        setFormData({ title: '', description: '', category: 'branding', tags: '', color: 'from-primary-500 to-secondary-500', imageUrl: '' })
+        setFormData({ title: '', description: '', detailText: '', category: 'branding', tags: '', color: 'from-primary-500 to-secondary-500', imageUrl: '' })
+        setImages([])
+        setFiles([])
         setEditingProject(null)
         setShowForm(false)
     }
@@ -72,11 +80,14 @@ export default function AdminPortfolio() {
         setFormData({
             title: project.title,
             description: project.description,
+            detailText: project.detailText || '',
             category: project.category,
             tags: project.tags,
             color: project.color,
             imageUrl: project.imageUrl || '',
         })
+        setImages(Array.isArray(project.images) ? project.images : [])
+        setFiles(Array.isArray(project.files) ? project.files : [])
         setShowForm(true)
     }
 
@@ -87,13 +98,13 @@ export default function AdminPortfolio() {
                 await fetch('/api/portfolio', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...formData, id: editingProject.id }),
+                    body: JSON.stringify({ ...formData, images, files, id: editingProject.id }),
                 })
             } else {
                 await fetch('/api/portfolio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData),
+                    body: JSON.stringify({ ...formData, images, files }),
                 })
             }
             resetForm()
@@ -157,24 +168,50 @@ export default function AdminPortfolio() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Résumé <span className="font-normal text-gray-400">— affiché sur la carte du projet</span>
+                                    </label>
                                     <textarea required className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Description détaillée <span className="font-normal text-gray-400">(optionnel) — affichée sur la page du projet</span>
+                                    </label>
+                                    <textarea
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                                        rows={6}
+                                        value={formData.detailText}
+                                        onChange={(e) => setFormData({ ...formData, detailText: e.target.value })}
+                                        placeholder="Contexte du projet, besoin du client, ce qui a été réalisé, résultats obtenus…"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Tags (séparés par des virgules)</label>
                                         <Input required value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="Logo, Charte graphique, Site" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Couleur de fond</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Couleur de fond <span className="font-normal text-gray-400">(sans image)</span></label>
                                         <select className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })}>
                                             {colorOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">URL image (optionnel)</label>
-                                        <Input value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://..." />
-                                    </div>
+                                </div>
+
+                                {/* Galerie et fichiers sources */}
+                                <div className="pt-4 border-t space-y-6">
+                                    <MultiImageUpload
+                                        label="Images du projet"
+                                        value={images}
+                                        onChange={setImages}
+                                        prefix="projet"
+                                    />
+                                    <SourceFilesUpload
+                                        label="Fichiers sources (optionnel)"
+                                        value={files}
+                                        onChange={setFiles}
+                                        prefix="projet-source"
+                                    />
                                 </div>
                                 <div className="flex gap-3">
                                     <Button type="submit"><Save className="w-4 h-4 mr-2" />{editingProject ? 'Enregistrer' : 'Créer'}</Button>
