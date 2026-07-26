@@ -186,10 +186,9 @@ function DecalModel({
     const { scene: source } = useGLTF(modelUrl)
     const analysis = useMemo(() => analyzeModel(source, baseColor), [source, baseColor])
     const bodyRef = useRef<THREE.Mesh | null>(null)
-
-    useEffect(() => {
-        bodyRef.current = analysis.bodyMesh
-    }, [analysis])
+    // Assignation synchrone pendant le rendu : le Decal lit cette ref dès son
+    // premier montage (un useEffect arriverait trop tard → crash drei).
+    bodyRef.current = analysis.bodyMesh
 
     // Échelle du decal : on inscrit le design dans la zone en gardant le ratio.
     const decalScale = useMemo<[number, number, number]>(() => {
