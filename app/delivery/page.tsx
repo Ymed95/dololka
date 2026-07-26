@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
+
+export const metadata: Metadata = {
+    title: 'Livraison et expédition',
+    description: 'Délais, tarifs et options de livraison pour vos commandes de produits personnalisés : suivez votre commande en toute sérénité.',
+    alternates: { canonical: '/delivery' },
+}
 
 export default function DeliveryPage() {
     return (

@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Work_Sans, Encode_Sans } from 'next/font/google'
 import { SessionProvider } from '@/components/providers/SessionProvider'
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site'
 
 // Polices de la charte, exposées en variables CSS et consommées par Tailwind
 // (voir `fontFamily` dans tailwind.config.js). Auparavant Inter était chargée
@@ -20,16 +21,14 @@ const encodeSans = Encode_Sans({
     display: 'swap',
 })
 
-const SITE_URL = process.env.NEXTAUTH_URL || 'https://www.dololkaagency.com'
-
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_URL),
     title: {
         default: 'Dololka Agency — Agence de communication 360°',
         template: '%s | Dololka Agency',
     },
-    description:
-        "Agence de communication 360° : création de sites web, identité visuelle, réseaux sociaux, publicité, enseignes et production textile. Personnalisez vos produits en ligne avec notre configurateur 2D et 3D.",
+    description: SITE_DESCRIPTION,
+    alternates: { canonical: '/' },
     keywords: [
         'agence de communication',
         'création de site internet',
@@ -48,6 +47,25 @@ export const metadata: Metadata = {
     },
 }
 
+// Données structurées : permettent aux moteurs d'identifier l'entreprise
+// (nom, logo, site, contact) et d'enrichir l'affichage des résultats.
+const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/logo-mark.png`,
+    image: `${SITE_URL}/opengraph-image.png`,
+    description: SITE_DESCRIPTION,
+    areaServed: 'FR',
+    contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        url: `${SITE_URL}/contact`,
+        availableLanguage: ['French'],
+    },
+}
+
 export default function RootLayout({
     children,
 }: {
@@ -56,6 +74,10 @@ export default function RootLayout({
     return (
         <html lang="fr" className={`${workSans.variable} ${encodeSans.variable}`}>
             <body className="font-sans">
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+                />
                 <SessionProvider>{children}</SessionProvider>
             </body>
         </html>

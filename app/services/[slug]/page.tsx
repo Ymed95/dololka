@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ServiceDetail } from '@/components/ServiceDetail'
 import { getServiceIcon } from '@/lib/serviceIcons'
@@ -7,6 +8,27 @@ import { getServiceBySlug } from '@/lib/servicesData'
 // avec repli sur les 12 services historiques tant que la DB n'est pas migrée.
 // force-dynamic : pas de pré-rendu au build (la DB n'y est pas accessible).
 export const dynamic = 'force-dynamic'
+
+// Chaque service a son propre titre et sa propre description en recherche.
+export async function generateMetadata(
+    { params }: { params: { slug: string } }
+): Promise<Metadata> {
+    const service = await getServiceBySlug(params.slug)
+    if (!service) return { title: 'Service introuvable' }
+
+    const description = (service.subtitle || service.description || '').slice(0, 160)
+
+    return {
+        title: service.title,
+        description,
+        alternates: { canonical: `/services/${service.slug}` },
+        openGraph: {
+            title: `${service.title} | Dololka Agency`,
+            description,
+            type: 'article',
+        },
+    }
+}
 
 export default async function ServicePage({ params }: { params: { slug: string } }) {
     const service = await getServiceBySlug(params.slug)

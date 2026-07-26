@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
+
+export const metadata: Metadata = {
+    title: 'Questions fréquentes',
+    description: 'Délais, tarifs, personnalisation, livraison, commandes : retrouvez les réponses aux questions les plus posées sur nos services et notre boutique.',
+    alternates: { canonical: '/faq' },
+}
 
 export default function FAQPage() {
     const faqs = [

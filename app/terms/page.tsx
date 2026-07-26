@@ -1,5 +1,12 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
+
+export const metadata: Metadata = {
+    title: 'Conditions générales de vente',
+    description: 'Conditions générales de vente de Dololka Agency : commandes, paiement, livraison, retours et garanties.',
+    alternates: { canonical: '/terms' },
+}
 
 export default function TermsPage() {
     return (

@@ -1,5 +1,12 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
+
+export const metadata: Metadata = {
+    title: 'Politique de confidentialité',
+    description: 'Comment Dololka Agency collecte, utilise et protège vos données personnelles, conformément au RGPD.',
+    alternates: { canonical: '/privacy' },
+}
 
 export default function PrivacyPage() {
     return (

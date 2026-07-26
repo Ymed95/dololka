@@ -1,9 +1,17 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { getActiveServices } from '@/lib/servicesData'
 import { getServiceIcon } from '@/lib/serviceIcons'
+
+export const metadata: Metadata = {
+    title: 'Nos services de communication',
+    description:
+        "Création de sites web, graphisme, réseaux sociaux, publicité, branding, enseignes, photo-vidéo, textile : découvrez toutes les expertises de Dololka Agency.",
+    alternates: { canonical: '/services' },
+}
 
 // Liste des services gérée depuis l'espace admin (repli sur les 12 historiques
 // tant que la base n'est pas migrée).

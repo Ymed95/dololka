@@ -1,5 +1,12 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+    title: 'Centre d\'aide',
+    description: 'Besoin d\'assistance ? Guides et réponses pour commander, personnaliser vos produits et suivre vos commandes chez Dololka Agency.',
+    alternates: { canonical: '/help' },
+}
 
 export default function HelpPage() {
     return (

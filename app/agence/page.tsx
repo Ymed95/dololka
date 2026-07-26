@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import Link from 'next/link'
@@ -5,6 +6,12 @@ import {
     Target, Eye, Lightbulb, Rocket, Users, Award, Heart, ArrowRight,
     CheckCircle2
 } from 'lucide-react'
+
+export const metadata: Metadata = {
+    title: 'Notre agence de communication 360°',
+    description: 'Dololka Agency accompagne les marques de A à Z : stratégie, création, web, publicité, enseignes et textile. Un seul interlocuteur pour toute votre communication.',
+    alternates: { canonical: '/agence' },
+}
 
 const values = [
     {
