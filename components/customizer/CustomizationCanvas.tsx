@@ -177,6 +177,8 @@ export const CustomizationCanvas = ({
 }: CustomizationCanvasProps) => {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null)
     const [designFileName, setDesignFileName] = useState<string | undefined>(undefined)
+    // Précisions libres saisies par le client, transmises à l'atelier.
+    const [customNotes, setCustomNotes] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [show3D, setShow3D] = useState(false)
     const [is3DLoading, setIs3DLoading] = useState(false)
@@ -350,6 +352,7 @@ export const CustomizationCanvas = ({
                 productType,
                 designFileName,
                 views: renderedViews,
+                customNotes: customNotes.trim() || undefined,
             }
 
             await onSave(data)
@@ -703,6 +706,31 @@ export const CustomizationCanvas = ({
                             </div>
                         </div>
                     )}
+
+                    {/* Précisions libres : transmises telles quelles à l'atelier */}
+                    <div className="mt-6 pt-6 border-t">
+                        <label htmlFor="custom-notes" className="block text-sm font-medium text-gray-700 mb-2">
+                            Précisions sur votre personnalisation{' '}
+                            <span className="font-normal text-gray-400">(optionnel)</span>
+                        </label>
+                        <textarea
+                            id="custom-notes"
+                            rows={4}
+                            maxLength={1000}
+                            value={customNotes}
+                            onChange={(e) => setCustomNotes(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            placeholder="Couleur exacte du logo, emplacement souhaité, type d'impression, contraintes particulières…"
+                        />
+                        <div className="flex justify-between items-start gap-3 mt-1.5">
+                            <p className="text-xs text-gray-500">
+                                Ces précisions seront transmises à notre atelier avec votre commande.
+                            </p>
+                            <span className={`text-xs flex-shrink-0 ${customNotes.length > 900 ? 'text-orange-600' : 'text-gray-400'}`}>
+                                {customNotes.length}/1000
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

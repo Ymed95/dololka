@@ -71,7 +71,8 @@ model Order {
   designWidth     Float?   // Width of design
   designHeight    Float?   // Height of design
   designRotation  Float?   // Rotation angle
-  customNotes     String?  // Additional notes from client
+  customNotes     String?  // Récapitulatif produit + livraison (généré)
+  clientNotes     String?  // Précisions libres saisies par le client au moment de la personnalisation
 
   // Asset de production
   baseColor         String?  // Couleur de base du vêtement (hex)

@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { Navbar } from '@/components/Navbar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Package, Download, X, Eye, User, MapPin, FileImage } from 'lucide-react'
+import { Package, Download, X, Eye, User, MapPin, FileImage, MessageSquare } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
 // Composant basé sur react-konva → chargement client uniquement (pas de SSR).
@@ -474,10 +474,27 @@ export default function AdminOrders() {
                                 )}
                             </div>
 
-                            {/* Notes */}
+                            {/* Précisions du client : mises en avant, ce sont des
+                                consignes de production à ne pas manquer. */}
+                            {(selectedOrder.clientNotes || selectedOrder.customizationData?.customNotes) && (
+                                <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-5 mb-6">
+                                    <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                        <MessageSquare className="w-4 h-4" />
+                                        Précisions du client
+                                    </h3>
+                                    <p className="text-xs text-gray-600 mb-3">
+                                        Consignes saisies lors de la personnalisation — à prendre en compte pour la production.
+                                    </p>
+                                    <p className="text-sm text-gray-800 whitespace-pre-line bg-white rounded-lg p-3 border border-orange-100">
+                                        {selectedOrder.clientNotes || selectedOrder.customizationData?.customNotes}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Récapitulatif généré (produit + livraison) */}
                             {selectedOrder.customNotes && (
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6">
-                                    <h3 className="font-bold text-gray-900 mb-2">Notes / Adresse de livraison</h3>
+                                    <h3 className="font-bold text-gray-900 mb-2">Récapitulatif / Adresse de livraison</h3>
                                     <p className="text-sm text-gray-700 whitespace-pre-line">{selectedOrder.customNotes}</p>
                                 </div>
                             )}

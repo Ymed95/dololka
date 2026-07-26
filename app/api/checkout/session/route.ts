@@ -118,6 +118,9 @@ export async function POST(request: NextRequest) {
                         ? (JSON.parse(JSON.stringify(customization)) as Prisma.InputJsonValue)
                         : Prisma.JsonNull,
                     customNotes: `${productBlock}\n\n${shippingBlock}`,
+                    // Précisions saisies par le client dans le configurateur,
+                    // conservées à part du récapitulatif généré.
+                    clientNotes: customization?.customNotes || null,
                 },
             })
             orderIds.push(order.id)
