@@ -49,8 +49,9 @@ module.exports = {
                 },
             },
             fontFamily: {
-                sans: ['Work Sans', 'system-ui', 'sans-serif'],
-                heading: ['Encode Sans', 'system-ui', 'sans-serif'],
+                // Variables CSS définies par next/font dans app/layout.tsx
+                sans: ['var(--font-sans)', 'Work Sans', 'system-ui', 'sans-serif'],
+                heading: ['var(--font-heading)', 'Encode Sans', 'system-ui', 'sans-serif'],
             },
             animation: {
                 'fade-in': 'fadeIn 0.3s ease-in-out',
