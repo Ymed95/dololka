@@ -100,17 +100,34 @@ function useSrgbTexture(url: string): THREE.Texture {
     return texture
 }
 
+/** Taille visée pour la plus grande dimension d'un modèle, afin que tous les
+ *  produits s'affichent de façon comparable quelle que soit leur échelle d'origine. */
+const TARGET_SIZE = 3.8
+
 /** Analyse du GLB : mesh « corps » cible + teinte couleur. */
 interface ModelAnalysis {
     scene: THREE.Group
     bodyMesh: THREE.Mesh | null
     bodyBox: THREE.Box3
+    /** Facteur ramenant le modèle à une taille d'affichage constante. */
+    scale: number
 }
 
 function analyzeModel(source: THREE.Object3D, baseColor: string, fabric: boolean): ModelAnalysis {
     // Clone profond pour ne pas muter le cache global de useGLTF.
     const scene = source.clone(true) as THREE.Group
     scene.updateMatrixWorld(true)
+
+    // Les modèles du commerce arrivent à des échelles très variables (souvent
+    // en mètres : un t-shirt fait alors 0,7 unité). On calcule un facteur pour
+    // les ramener à une taille constante, appliqué au groupe qui contient AUSSI
+    // les décalques : sinon le design serait placé dans une autre échelle que
+    // le vêtement et se retrouverait hors du modèle.
+    const rawBox = new THREE.Box3().setFromObject(scene)
+    const rawSize = new THREE.Vector3()
+    rawBox.getSize(rawSize)
+    const largest = Math.max(rawSize.x, rawSize.y, rawSize.z)
+    const scale = largest > 0 ? TARGET_SIZE / largest : 1
 
     const candidates: THREE.Mesh[] = []
 
@@ -145,27 +162,39 @@ function analyzeModel(source: THREE.Object3D, baseColor: string, fabric: boolean
             : apply(mesh.material)
     })
 
-    // Mesh « corps » = plus gros volume de bounding box (le torse en général).
+    // Mesh « corps » : celui qui porte le design.
+    // On retient le plus détaillé parmi ceux dont le volume est proche du
+    // maximum. Le seul volume ne suffit pas : les modèles du commerce
+    // contiennent souvent plusieurs couches de même encombrement (doublure,
+    // coque interne), dont certaines très peu détaillées.
     let bodyMesh: THREE.Mesh | null = null
-    let maxVolume = -1
-    candidates.forEach((mesh) => {
-        mesh.geometry.computeBoundingBox()
-        const bb = mesh.geometry.boundingBox
-        if (!bb) return
-        const size = new THREE.Vector3()
-        bb.getSize(size)
-        const volume = size.x * size.y * size.z
-        if (volume > maxVolume) {
-            maxVolume = volume
-            bodyMesh = mesh
-        }
-    })
+    const measured = candidates
+        .map((mesh) => {
+            mesh.geometry.computeBoundingBox()
+            const bb = mesh.geometry.boundingBox
+            if (!bb) return null
+            const size = new THREE.Vector3()
+            bb.getSize(size)
+            const geo = mesh.geometry
+            const triangles = geo.index
+                ? geo.index.count / 3
+                : (geo.attributes.position?.count ?? 0) / 3
+            return { mesh, volume: size.x * size.y * size.z, triangles }
+        })
+        .filter((m): m is { mesh: THREE.Mesh; volume: number; triangles: number } => m !== null)
+
+    if (measured.length > 0) {
+        const maxVolume = Math.max(...measured.map((m) => m.volume))
+        const biggest = measured.filter((m) => m.volume >= maxVolume * 0.9)
+        biggest.sort((a, b) => b.triangles - a.triangles)
+        bodyMesh = biggest[0].mesh
+    }
 
     const bodyBox = new THREE.Box3()
     const bm = bodyMesh as THREE.Mesh | null
     if (bm?.geometry.boundingBox) bodyBox.copy(bm.geometry.boundingBox)
 
-    return { scene, bodyMesh: bm, bodyBox }
+    return { scene, bodyMesh: bm, bodyBox, scale }
 }
 
 /** Traduit un placement 2D (relatif au template) en transform de decal 3D
@@ -324,6 +353,7 @@ function DecalModel({
 
     return (
         <group
+            scale={analysis.scale}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
         >
