@@ -111,11 +111,48 @@ interface ModelAnalysis {
     bodyBox: THREE.Box3
     /** Facteur ramenant le modèle à une taille d'affichage constante. */
     scale: number
+    /** Axes du monde (droite, haut, avant) exprimés dans le repère local
+     *  de la géométrie du vêtement. */
+    axes: { right: THREE.Vector3; up: THREE.Vector3; front: THREE.Vector3 }
+}
+
+/**
+ * Aplatit la hiérarchie du modèle : chaque géométrie est réécrite dans le
+ * repère de la scène, puis rattachée directement à la racine sans
+ * transformation.
+ *
+ * Indispensable pour les modèles du commerce : drei calcule la géométrie du
+ * décalque dans le repère du maillage, alors que le décalque est rattaché à
+ * notre groupe. Tant que les deux diffèrent (nœuds pivotés, fréquents sur les
+ * exports Z-up), le design se retrouve décalé ou hors du vêtement.
+ */
+function flattenModel(source: THREE.Object3D): THREE.Group {
+    const cloned = source.clone(true)
+    cloned.updateMatrixWorld(true)
+
+    const flat = new THREE.Group()
+    const meshes: THREE.Mesh[] = []
+    cloned.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh) meshes.push(obj as THREE.Mesh)
+    })
+
+    meshes.forEach((mesh) => {
+        // Géométrie clonée : celle du cache de useGLTF ne doit jamais être modifiée.
+        const geometry = mesh.geometry.clone()
+        geometry.applyMatrix4(mesh.matrixWorld)
+        geometry.computeBoundingBox()
+
+        const flattened = new THREE.Mesh(geometry, mesh.material)
+        flattened.name = mesh.name
+        flat.add(flattened)
+    })
+
+    return flat
 }
 
 function analyzeModel(source: THREE.Object3D, baseColor: string, fabric: boolean): ModelAnalysis {
-    // Clone profond pour ne pas muter le cache global de useGLTF.
-    const scene = source.clone(true) as THREE.Group
+    // Modèle aplati : repère de la géométrie et repère du groupe confondus.
+    const scene = flattenModel(source)
     scene.updateMatrixWorld(true)
 
     // Les modèles du commerce arrivent à des échelles très variables (souvent
@@ -179,51 +216,102 @@ function analyzeModel(source: THREE.Object3D, baseColor: string, fabric: boolean
             const triangles = geo.index
                 ? geo.index.count / 3
                 : (geo.attributes.position?.count ?? 0) / 3
-            return { mesh, volume: size.x * size.y * size.z, triangles }
+            return { mesh, volume: size.x * size.y * size.z, triangles, frontZ: bb.max.z }
         })
-        .filter((m): m is { mesh: THREE.Mesh; volume: number; triangles: number } => m !== null)
+        .filter(
+            (m): m is { mesh: THREE.Mesh; volume: number; triangles: number; frontZ: number } =>
+                m !== null
+        )
 
     if (measured.length > 0) {
         const maxVolume = Math.max(...measured.map((m) => m.volume))
-        const biggest = measured.filter((m) => m.volume >= maxVolume * 0.9)
-        biggest.sort((a, b) => b.triangles - a.triangles)
-        bodyMesh = biggest[0].mesh
+        // Parmi les maillages de taille comparable, on retient celui qui avance
+        // le plus vers l'avant : c'est la surface que le client voit. Les
+        // modèles du commerce superposent souvent plusieurs couches (doublure,
+        // épaisseur interne) ; projeter le design sur une couche arrière le
+        // rendrait invisible, masqué par celle de devant.
+        const large = measured.filter((m) => m.volume >= maxVolume * 0.7)
+        large.sort((a, b) => {
+            const dz = b.frontZ - a.frontZ
+            if (Math.abs(dz) > 1e-4) return dz
+            return b.triangles - a.triangles
+        })
+        bodyMesh = large[0].mesh
     }
 
+    // Boîte englobante dans le repère LOCAL de la géométrie : drei annule la
+    // transformation du maillage avant de projeter le décalque
+    // (parent.matrixWorld.identity()), les coordonnées doivent donc y être
+    // exprimées.
     const bodyBox = new THREE.Box3()
     const bm = bodyMesh as THREE.Mesh | null
     if (bm?.geometry.boundingBox) bodyBox.copy(bm.geometry.boundingBox)
 
-    return { scene, bodyMesh: bm, bodyBox, scale }
+    // Correspondance entre les axes du monde (Y = haut, Z = avant) et ceux de
+    // la géométrie : de nombreux modèles du commerce sont exportés en Z-up et
+    // redressés par une rotation du noeud. Sans cette correspondance, le design
+    // se retrouve projeté sur le dessus ou le côté du vêtement.
+    const axes = { right: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), front: new THREE.Vector3(0, 0, 1) }
+    if (bm) {
+        const q = new THREE.Quaternion()
+        bm.getWorldQuaternion(q)
+        const inv = q.invert()
+        axes.right.applyQuaternion(inv)
+        axes.up.applyQuaternion(inv)
+        axes.front.applyQuaternion(inv)
+    }
+
+    return { scene, bodyMesh: bm, bodyBox, scale, axes }
 }
 
 /** Traduit un placement 2D (relatif au template) en transform de decal 3D
  *  sur la face avant ou arrière du bounding box du mesh corps. */
 function computeDecalTransform(
     box: THREE.Box3,
+    axes: { right: THREE.Vector3; up: THREE.Vector3; front: THREE.Vector3 },
     placement: DecalPlacement,
     side: 'front' | 'back'
 ): { position: THREE.Vector3; rotation: THREE.Euler; scale: [number, number, number] } {
-    const w3 = box.max.x - box.min.x
-    const h3 = box.max.y - box.min.y
-    const d3 = Math.max(box.max.z - box.min.z, 0.1)
+    const size = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
 
-    const y = box.max.y - placement.v * h3
+    /** Étendue de la boîte le long d'une direction quelconque. */
+    const extentAlong = (dir: THREE.Vector3) =>
+        Math.abs(dir.x) * size.x + Math.abs(dir.y) * size.y + Math.abs(dir.z) * size.z
+
+    const width = extentAlong(axes.right)
+    const height = extentAlong(axes.up)
+    const depth = Math.max(extentAlong(axes.front), 0.1)
+
+    // Avant ou arrière : on inverse la normale et le sens horizontal.
+    const facing = side === 'front' ? 1 : -1
+    const normal = axes.front.clone().multiplyScalar(facing)
+
+    // u part de la gauche du vêtement, v part du haut.
+    const offsetX = (placement.u - 0.5) * width * facing
+    const offsetY = (0.5 - placement.v) * height
+
+    const position = center
+        .clone()
+        .addScaledVector(axes.right, offsetX)
+        .addScaledVector(axes.up, offsetY)
+        .addScaledVector(normal, depth / 2)
+
+    // Orientation : le décalque regarde vers l'extérieur, tête en haut.
+    const right = new THREE.Vector3().crossVectors(axes.up, normal).normalize()
+    const basis = new THREE.Matrix4().makeBasis(right, axes.up.clone().normalize(), normal.clone().normalize())
+    const quat = new THREE.Quaternion().setFromRotationMatrix(basis)
+
+    // Rotation du design : Konva tourne dans le sens horaire (y vers le bas).
     const rad = (placement.rotationDeg * Math.PI) / 180
+    quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -rad * facing))
 
-    if (side === 'front') {
-        return {
-            position: new THREE.Vector3(box.min.x + placement.u * w3, y, box.max.z),
-            // Konva : rotation horaire (y vers le bas) → -z en three (y vers le haut).
-            rotation: new THREE.Euler(0, 0, -rad),
-            scale: [placement.uWidth * w3, placement.vHeight * h3, d3],
-        }
-    }
-    // Face arrière : vue depuis -z, l'axe x apparaît inversé.
     return {
-        position: new THREE.Vector3(box.max.x - placement.u * w3, y, box.min.z),
-        rotation: new THREE.Euler(0, Math.PI, rad),
-        scale: [placement.uWidth * w3, placement.vHeight * h3, d3],
+        position,
+        rotation: new THREE.Euler().setFromQuaternion(quat),
+        scale: [placement.uWidth * width, placement.vHeight * height, depth],
     }
 }
 
@@ -343,12 +431,12 @@ function DecalModel({
     }
 
     const frontTransform = useMemo(
-        () => (frontDecal ? computeDecalTransform(analysis.bodyBox, frontDecal, 'front') : null),
-        [analysis.bodyBox, frontDecal]
+        () => (frontDecal ? computeDecalTransform(analysis.bodyBox, analysis.axes, frontDecal, 'front') : null),
+        [analysis.bodyBox, analysis.axes, frontDecal]
     )
     const backTransform = useMemo(
-        () => (backDecal ? computeDecalTransform(analysis.bodyBox, backDecal, 'back') : null),
-        [analysis.bodyBox, backDecal]
+        () => (backDecal ? computeDecalTransform(analysis.bodyBox, analysis.axes, backDecal, 'back') : null),
+        [analysis.bodyBox, analysis.axes, backDecal]
     )
 
     return (
