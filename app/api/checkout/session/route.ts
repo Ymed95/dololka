@@ -130,6 +130,15 @@ export async function POST(request: NextRequest) {
             orderIds.push(order.id)
         }
 
+        // Adresse de retour : le site réellement visité (production ou aperçu),
+        // pas NEXTAUTH_URL qui peut pointer vers un ancien déploiement supprimé.
+        const baseUrl = (
+            request.headers.get('origin') ||
+            request.nextUrl.origin ||
+            process.env.NEXTAUTH_URL ||
+            ''
+        ).replace(/\/$/, '')
+
         // Create Stripe Checkout Session
         const checkoutSession = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -140,8 +149,8 @@ export async function POST(request: NextRequest) {
                 userId: (session.user as any).id,
             },
             customer_email: session.user?.email || undefined,
-            success_url: `${process.env.NEXTAUTH_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.NEXTAUTH_URL}/cart?cancelled=true`,
+            success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/cart?cancelled=true`,
         })
 
         return NextResponse.json({ url: checkoutSession.url, sessionId: checkoutSession.id })
