@@ -44,20 +44,32 @@ Deux façons :
 (modèle Prisma `Product`). Il prévaut sur le modèle par défaut de la catégorie.
 La valeur peut être un chemin local (`/models/mon-tshirt.glb`) ou une URL Blob/CDN.
 
-### Contrainte clé : la zone d'impression (`PrintArea`)
+### Placement du design (automatique)
 
-Pour un placement correct du decal, le GLB **doit contenir un node nommé
-`PrintArea`** : un plan (PlaneGeometry) **invisible**, positionné sur la zone
-d'impression (poitrine avant), sa normale orientée vers l'extérieur du vêtement.
-Le viewer lit sa position, son orientation et ses dimensions pour y projeter le design.
+Aucune préparation du modèle n'est nécessaire : le viewer aplatit la hiérarchie,
+ramène le modèle à une taille standard, détecte son orientation (Y-up ou Z-up)
+et choisit le maillage « corps » (le plus en avant parmi les plus gros volumes).
+Le design est projeté à partir de la zone choisie dans l'éditeur 2D.
 
-- Si `PrintArea` est absent, le viewer retombe sur un placement centré
-  automatique (face avant du bounding box) — fonctionnel mais moins précis.
-- Le mesh « corps » ciblé par le decal est détecté automatiquement (plus gros volume).
+Un éventuel node `PrintArea` / `PrintAreaBack` (anciens modèles générés) est
+simplement masqué.
 
-Le script `scripts/generate-models.mjs` montre comment créer ce node ;
-reproduis la même convention dans ton outil 3D (Blender → nommer l'objet `PrintArea`,
-matériau transparent/invisible).
+### Alléger un modèle avant de l'intégrer
+
+Les modèles du commerce sont souvent très détaillés (le t-shirt fourni faisait
+6,8 Mo pour 238 000 triangles, trop lourd sur mobile). Simplification puis
+compression meshopt :
+
+```bash
+npx @gltf-transform/cli simplify modele.glb tmp.glb --ratio 0.2 --error 0.0005
+npx @gltf-transform/cli meshopt tmp.glb public/models/modele.glb
+node scripts/inspect-model.mjs public/models/modele.glb   # contrôle
+```
+
+Résultat pour le t-shirt : 424 Ko et 53 000 triangles, sans différence visible.
+Le décodage meshopt est intégré à `useGLTF` (aucun fichier à télécharger en plus)
+et le viewer reconvertit les coordonnées compressées avant de les manipuler.
+Toujours comparer le rendu avant/après, y compris sur une couleur foncée.
 
 ### Aspect & couleur
 

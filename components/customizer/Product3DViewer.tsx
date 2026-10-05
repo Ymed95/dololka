@@ -117,6 +117,28 @@ interface ModelAnalysis {
 }
 
 /**
+ * Convertit les attributs compressés (entiers normalisés, cf. compression
+ * meshopt) en flottants. Sans cela, intégrer une transformation dans la
+ * géométrie tronquerait les coordonnées et déformerait le modèle.
+ */
+function toFloatGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+    Object.entries(geometry.attributes).forEach(([name, attr]) => {
+        if (attr instanceof THREE.BufferAttribute && attr.array instanceof Float32Array) return
+        const { count, itemSize } = attr
+        const array = new Float32Array(count * itemSize)
+        // getX/Y/Z/W dénormalisent les entiers et gèrent les attributs entrelacés.
+        const getters = [attr.getX, attr.getY, attr.getZ, attr.getW]
+        for (let i = 0; i < count; i++) {
+            for (let c = 0; c < itemSize; c++) {
+                array[i * itemSize + c] = getters[c].call(attr, i)
+            }
+        }
+        geometry.setAttribute(name, new THREE.BufferAttribute(array, itemSize))
+    })
+    return geometry
+}
+
+/**
  * Aplatit la hiérarchie du modèle : chaque géométrie est réécrite dans le
  * repère de la scène, puis rattachée directement à la racine sans
  * transformation.
@@ -138,7 +160,7 @@ function flattenModel(source: THREE.Object3D): THREE.Group {
 
     meshes.forEach((mesh) => {
         // Géométrie clonée : celle du cache de useGLTF ne doit jamais être modifiée.
-        const geometry = mesh.geometry.clone()
+        const geometry = toFloatGeometry(mesh.geometry.clone())
         geometry.applyMatrix4(mesh.matrixWorld)
         geometry.computeBoundingBox()
 
